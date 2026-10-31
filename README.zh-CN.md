@@ -2,9 +2,17 @@
 
 [English](README.md) | [Русский](README.ru.md) | 简体中文
 
-通过 ChatGPT 账户在 DeepSeek Harness 中使用 OpenAI 模型。Harness 管理对话并执行工具；OpenAI 官方的本地 Codex app-server 负责登录、凭据保存、令牌刷新和模型访问。无需 OpenAI API Key。
+通过 ChatGPT 账户将 Codex 接入 DeepSeek Harness：模型访问、原生网页搜索和页面读取、图片理解、生成与编辑、会话恢复以及令牌和配额跟踪。Harness 管理对话和工具权限，OpenAI 官方本地 Codex app-server 负责登录、凭据存储、令牌刷新及原生能力。无需 OpenAI API Key。
 
 创建此分支是为了支持当前版本的 Harness，并提供尚未合并到上游的修复。[上游 PR #3](https://github.com/DGPisces/dsh-openai-oauth/pull/3) 的原始提交保留了作者信息；我们的修改使用独立提交。
+
+## 0.5 新功能
+
+- 通过 Harness 标准网页工具使用 Codex 原生搜索和页面读取。
+- 支持用户图片、MCP 截图及图片生成和编辑，并及时展示结果。
+- 恢复会话并通过 steering 接收新指令，避免消息触发重复压缩。
+- 兼容保留的 MCP 工具名称和坐标参数结构。
+- 展示真实令牌用量和 ChatGPT 配额窗口。
 
 ## 修复内容
 
@@ -27,20 +35,20 @@
 用于 Web 界面：
 
 ```sh
-dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.4.1
+dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.5.0
 ```
 
 如果 PATH 中没有 `dsh`，请使用你已安装的 Harness 启动方式。例如：
 
 ```sh
-npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.4.1
+npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.5.0
 ```
 
 无 Web 界面时，将 `web` profile 替换为 `headless`。各 profile 分别安装依赖。
 
 如果安装方式没有自动注册 bundle，请将 `dsh-openai-oauth` 加入相应 profile 的 `dsh.profile.bundles` 列表，并保留其他条目。安装后重启 Harness。
 
-上游的 `npx dsh-openai-oauth install` 命令安装的是 npm 包，而非此 GitHub 分支。请使用上面的引用或[发行页面](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.4.1)中的压缩包。发布到 GitHub 不会自动将插件加入 Harness 插件市场。
+上游的 `npx dsh-openai-oauth install` 命令安装的是 npm 包，而非此 GitHub 分支。请使用上面的引用或[发行页面](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.5.0)中的压缩包。发布到 GitHub 不会自动将插件加入 Harness 插件市场。
 
 ## 使用 ChatGPT 登录
 
@@ -133,7 +141,7 @@ npm pack --dry-run
 
 MIT
 
-### 上下文恢复与压缩（0.4.7）
+### 上下文恢复与压缩（0.5）
 
 Harness 当前历史是唯一事实来源。重启/HMR 后，适配器核对历史指纹、助手输出、会话配置及最后保存的 turn，仅恢复匹配且已完成的 Codex 线程。用量从保存的累计计数继续计算。旧版、不匹配或未完成的检查点仍从当前历史重建，不会重新执行历史工具调用。历史变化时，在没有待处理工具响应的情况下重建对话；系统提示、模型或工具变化时，即使正在等待工具响应也会重建。
 
@@ -145,7 +153,7 @@ Harness 当前历史是唯一事实来源。重启/HMR 后，适配器核对历�
 
 点击配额行查看已用/剩余百分比、窗口时长、重置日期与倒计时、获取时间和刷新按钮。配额不是令牌计数，不会虚构未报告的窗口。
 
-### Codex 原生网页搜索（0.4.8）
+### Codex 原生网页搜索（0.5）
 
 插件向 Harness 标准 `web` 服务注册 `openai-codex` 搜索提供方，通过 ChatGPT 登录在独立临时线程中运行 Codex 原生实时搜索，无需 DeepSeek API 密钥。标准 `web_search` 工具保留来源卡片、持久化来源元数据和 Markdown 引用。
 
@@ -164,7 +172,7 @@ Harness 当前历史是唯一事实来源。重启/HMR 后，适配器核对历�
 
 注册本身不切换现有提供方。内置 DeepSeek 搜索设置开关仍选择 DeepSeek 后端，可能覆盖此选择。搜索使用 ChatGPT 配额，用量记录在 `web/codex-search-llm-request` 事件中；未实际执行原生搜索的响应会被拒绝。取消操作中断并释放临时线程，普通对话、标题和压缩线程仍禁用原生搜索。
 
-### 图片（准备 0.5）
+### 图片（0.5）
 
 用户附件和 MCP 工具返回的图片通过 Harness 附件存储以原生图片传入 Codex，支持 PNG、JPEG、WebP、GIF 以及文字与图片混合结果。恢复历史时标记图片来源并跳过已卸载的图片；图片字节不进入文本摘要。
 
@@ -172,7 +180,7 @@ Harness 当前历史是唯一事实来源。重启/HMR 后，适配器核对历�
 
 提供方还通过 Codex 原生 `openPage` 支持 `web_fetch`，返回模型提取的文字而非原始 HTML，不保证完整或逐字一致。app-server 不提供 HTTP 状态码，`0` 明确表示未知。未经确认打开请求 URL 并获得可读结果的响应会被拒绝。用量记录为 `web/codex-fetch-llm-request`。如需普通 HTTP 传输，可使用 `fetchProvider: http`。
 
-### 图片生成与编辑（准备 0.5）
+### 图片生成与编辑（0.5）
 
 `image_generate` 使用当前 ChatGPT 登录调用 Codex 原生图片生成；`image_edit` 接收提示词和当前会话中 1–4 个有效附件的 `image_ids`。本地图片先通过 `read_image` 导入。输入以原生图片直接传入独立调用，通过 `num_last_images_to_include` 编辑，无需访问本地路径，原附件不被覆盖。结果作为新的 PNG 附件持久保存。
 

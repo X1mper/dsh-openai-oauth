@@ -2,9 +2,17 @@
 
 English | [Русский](README.ru.md) | [简体中文](README.zh-CN.md)
 
-Use OpenAI models with your ChatGPT account in DeepSeek Harness. Harness manages the conversation and executes tools; the official local Codex app-server handles sign-in, credential storage, token refresh, and model access. No OpenAI API key is required.
+Connect DeepSeek Harness to Codex with your ChatGPT account: model access, native web search and page reading, image understanding, generation and editing, conversation recovery, and token/quota tracking. Harness manages conversations and tool permissions; the official local Codex app-server handles sign-in, credential storage, token refresh, and native capabilities. No OpenAI API key is required.
 
 This fork was created to support current Harness and make fixes available while they remain unmerged upstream. The original commits from [upstream PR #3](https://github.com/DGPisces/dsh-openai-oauth/pull/3) retain their authorship; our changes are separate commits.
+
+## What is new in 0.5
+
+- Native Codex search and page reading through standard Harness web tools.
+- User images and MCP screenshots, plus image generation/editing with immediate delivery.
+- Persistent conversation recovery and steering without repeated compaction on incoming messages.
+- Reserved MCP tool-name aliases and coordinate-schema compatibility.
+- Real token usage and ChatGPT quota windows in the UI.
 
 ## Fixes
 
@@ -27,20 +35,20 @@ The plugin pins Codex to version 0.166.0.
 For the web interface:
 
 ```sh
-dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.4.1
+dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.5.0
 ```
 
 If `dsh` is not on PATH, use your installed Harness launcher. For example:
 
 ```sh
-npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.4.1
+npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.5.0
 ```
 
 For headless use, replace the `web` profile with `headless`. Each profile installs its own dependencies.
 
 If your installation method does not register the bundle automatically, add `dsh-openai-oauth` to that profile's `dsh.profile.bundles` list, keeping its other entries. Restart Harness after installation.
 
-The upstream `npx dsh-openai-oauth install` command installs the npm package, not this GitHub fork. Use the reference above or the archive on the [release page](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.4.1). GitHub publication does not automatically list the plugin in the Harness marketplace.
+The upstream `npx dsh-openai-oauth install` command installs the npm package, not this GitHub fork. Use the reference above or the archive on the [release page](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.5.0). GitHub publication does not automatically list the plugin in the Harness marketplace.
 
 ## Sign in with ChatGPT
 
@@ -133,7 +141,7 @@ This is an independent community plugin, not an official DeepSeek or OpenAI prod
 
 MIT
 
-### Context recovery and compaction (0.4.7)
+### Context recovery and compaction (0.5)
 
 Harness history is authoritative. After restart/HMR the adapter resumes a completed Codex thread only when its saved history fingerprint, assistant output, session/configuration and latest persisted turn all match. Usage resumes from the saved cumulative counters. Old, incompatible or unfinished checkpoints fall back to rebuilding from the current transcript (including tool results and checkpoints). Changed history also rebuilds the conversation when no tool response is pending; model/system/tool changes rebuild even during a tool pause. This recovery uses a role-labelled textual transcript, not native historical tool execution.
 
@@ -152,7 +160,7 @@ node scripts/lifecycle-smoke.mjs
 
 Click a quota line to expand used/remaining percentages, reported window duration, reset date/countdown, fetch time and manual refresh. Quotas are not token totals; absent windows are never invented.
 
-### Native Codex web search (0.4.8)
+### Native Codex web search (0.5)
 
 The plugin registers an `openai-codex` search provider with Harness's standard `web` service. It uses ChatGPT sign-in and Codex native live web search in an isolated ephemeral thread. No DeepSeek API key is needed. The regular Harness `web_search` tool retains its source cards, persisted source metadata and Markdown citations. The current Codex conversation model is used, or the Codex catalog default outside a Codex conversation.
 
@@ -173,7 +181,7 @@ Registration alone does not change the existing search provider. The bundled Dee
 
 Opt-in live checks: `node scripts/web-search-smoke.mjs` and `DSH_CLI=/path/to/dsh/lib/bin.js node scripts/harness-web-search-smoke.mjs`.
 
-### Images (preparing 0.5)
+### Images (0.5)
 
 User attachments and MCP tool images are passed to Codex as native images through Harness attachment storage. PNG, JPEG, WebP and GIF are supported, including mixed text/image results. History recovery labels images by their original messages and skips offloaded images. Image bytes are kept out of textual summaries.
 
@@ -181,7 +189,7 @@ Opt-in live check: `DSH_CLI=/path/to/dsh/lib/bin.js node scripts/harness-images-
 
 The provider also supports `web_fetch` through native Codex `openPage`. It returns model-extracted text, not raw HTML; completeness and verbatim fidelity are not guaranteed. App-server does not expose HTTP status: `0` explicitly means unknown and is explained in the result. Responses without a confirmed open of the requested URL and readable native results are rejected. Usage is recorded in `web/codex-fetch-llm-request`. Keep `fetchProvider: http` for ordinary HTTP transport. Live check: `DSH_CLI=/path/to/dsh/lib/bin.js node scripts/harness-web-fetch-smoke.mjs`.
 
-### Image generation and editing (preparing 0.5)
+### Image generation and editing (0.5)
 
 `image_generate` creates one image with native Codex image generation using the existing ChatGPT login. `image_edit` accepts a prompt and 1–4 `image_ids` from active image attachments in the current conversation. Use Harness `read_image` first for local files. Inputs are sent as native images directly in the isolated turn; the generator edits them with `num_last_images_to_include` without local path access. Original attachments remain unchanged.
 
