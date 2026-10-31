@@ -2,27 +2,45 @@
 
 English | [Русский](README.ru.md) | [简体中文](README.zh-CN.md)
 
-Use GPT models from your ChatGPT account as the main model in DeepSeek Harness. Harness keeps its own agent loop and runs its own tools. This package connects its LLM interface to the official local Codex app-server, which handles ChatGPT login, credential storage, token refresh, and model access.
+Use OpenAI models with your ChatGPT account in DeepSeek Harness. Harness manages the conversation and executes tools; the official local Codex app-server handles sign-in, credential storage, token refresh, and model access. No OpenAI API key is required.
 
-You do not need an OpenAI API key. The package does not copy another Codex installation's `auth.json`, implement its own OAuth client, or call an unpublished ChatGPT endpoint.
+This is a compatibility fork. The original commits from [upstream PR #3](https://github.com/DGPisces/dsh-openai-oauth/pull/3) retain their authorship; our changes are separate commits.
+
+## Fixes
+
+- Settings UI compatibility with current Harness.
+- Support for current Harness tool-result messages alongside legacy result blocks.
+- Each session's working directory is passed to Codex instead of always using the plugin process directory.
+- Buttons and secondary text use Harness theme colors.
+- Updated bundled Codex and model discovery through it.
 
 ## Requirements
 
-- Node.js 22.19 or newer
-- DeepSeek Harness developer preview `0.1.0-rc.6`
-- A ChatGPT account with Codex access
+- Node.js 22.19 or newer.
+- DeepSeek Harness 0.2.1-rc.5, the version this fork targets.
+- A ChatGPT account with Codex access.
 
-## Install
+The plugin pins Codex to version 0.166.0.
 
-Run one command:
+## Install the fork
+
+For the web interface:
 
 ```sh
-npx -y dsh-openai-oauth install
+dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.4.1
 ```
 
-The installer registers the package with the `web` and `headless` profiles, plus any custom profiles that already exist. It also replaces the old `deepseek-harness-openai-oauth` and `dsh-llm-codex-app-server` packages if found.
+If `dsh` is not on PATH, use your installed Harness launcher. For example:
 
-Run the same command to update the package later. If you create a custom profile after installation, run it once more to register that profile.
+```sh
+npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.4.1
+```
+
+For headless use, replace the `web` profile with `headless`. Each profile installs its own dependencies.
+
+If your installation method does not register the bundle automatically, add `dsh-openai-oauth` to that profile's `dsh.profile.bundles` list, keeping its other entries. Restart Harness after installation.
+
+The upstream `npx dsh-openai-oauth install` command installs the npm package, not this GitHub fork. Use the reference above or the archive on the [release page](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.4.1). GitHub publication does not automatically list the plugin in the Harness marketplace.
 
 ## Sign in with ChatGPT
 
@@ -32,81 +50,69 @@ Start the Harness web interface:
 npx @deepseek-ai/dsh web
 ```
 
-Open **Settings > OpenAI OAuth**, select **Sign in with ChatGPT**, and finish authorization in the OpenAI page. The GPT models available to your account will then appear in the normal Harness model picker.
+Open **Settings → OpenAI OAuth**, select **Sign in with ChatGPT**, and complete authorization on the OpenAI page. Models will then appear in the normal Harness model picker.
 
-For a headless profile, sign in from the terminal:
+For a headless profile:
 
 ```sh
 npx @deepseek-ai/dsh plugin --profile headless exec dsh-codex-login
 ```
 
-The login is stored separately under `~/.deepseek-harness/codex`. Codex owns the credentials and refreshes them when needed.
+Credentials are stored separately under `~/.deepseek-harness/codex` and managed by Codex. The plugin does not copy authentication from another Codex installation.
 
 ## Select a model
 
-Choose the provider and model in the Harness interface, or set them in `~/.dsh/settings.yaml`:
+Choose **OpenAI Codex (ChatGPT OAuth)** and a model in Harness. The model list comes from Codex rather than being hardcoded in the plugin. A model appearing in the catalog does not by itself guarantee access for your account.
+
+Example configuration in `~/.dsh/settings.yaml`:
 
 ```yaml
 agent-default-model:
   provider: openai-codex
-  model: gpt-5.6-sol
+  model: gpt-6.1-sol
   reasoningEffort: high
 ```
 
-Run Harness as usual:
+Use a model identifier available in your list. To run without the web interface:
 
 ```sh
 npx @deepseek-ai/dsh --profile headless "inspect this repository"
 ```
 
-The plugin reads the model list from the signed-in Codex account. It does not keep a hardcoded list of GPT versions.
+## Session working directory
 
-## Uninstall
+When creating a new Codex thread, the plugin reads the working directory from the corresponding Harness session's metadata. Different sessions can use different directories. If directory metadata is missing or the call is outside a session, the plugin process directory is used.
 
-Remove the package from every current Harness profile while keeping the ChatGPT login for a future reinstall:
-
-```sh
-npx -y dsh-openai-oauth uninstall
-```
-
-For a clean uninstall that also signs out and deletes `~/.deepseek-harness/codex`:
-
-```sh
-npx -y dsh-openai-oauth uninstall --purge-auth
-```
-
-These commands also remove registrations left by the old package name. They do not install a permanent global npm package. npm may retain its normal download cache.
+**Start a new Harness session after updating:** existing Codex threads keep their original directory.
 
 ## Tool permissions
 
-Harness enforces file access and approvals for its dynamic tools. Threads use `environments: []` to disable Codex environment access, removing native file tools such as `apply_patch` instead of relying only on instructions to avoid them. Codex native tools remain in a read-only sandbox; that sandbox does not constrain tools executed by Harness. The adapter explains this boundary in developer instructions so the model follows actual Harness success, denial, or approval results instead of asking users to switch workspaces based on Codex metadata.
+Harness controls file access and approvals for its dynamic tools. Codex environment tools are disabled through `environments: []`, and its own sandbox remains read-only. These Codex restrictions do not replace Harness policy for tools executed by Harness.
 
-Reload the plugin after upgrading so newly created Codex sessions receive the instructions. Already running sessions are not updated automatically.
+The adapter passes actual tool results to the model, including permission denials. A Harness denial is not converted into success.
 
-For an opt-in end-to-end check against an installed Harness runtime, run:
+## Uninstall
+
+Remove the package from the appropriate profile:
 
 ```sh
-DSH_CLI=/absolute/path/to/dsh/lib/bin.js node scripts/harness-permission-smoke.mjs
+dsh plugin --profile web remove dsh-openai-oauth
 ```
 
-This creates isolated Harness homes and workspaces, exercises real `edit` and `read` tools with full-access and read-only policies, checks the durable tool results and file contents, and cleans up the temporary data. It uses the existing plugin ChatGPT login. Set `DSH_SMOKE_PROVIDER` to an installed adapter entry point to verify that installation.
+Remove `dsh-openai-oauth` from that profile's bundle list if the entry remains, then restart Harness. Repeat for other profiles where you installed the plugin. Removing the package does not delete the saved ChatGPT login; if needed, use **Sign out** in the plugin settings first.
 
-## Local development
+## Development
 
 ```sh
-npm install
-npm test
+npm install --legacy-peer-deps
+npm run build
 npm pack --dry-run
 ```
 
-This is an independent community plugin. It is not endorsed by DeepSeek or OpenAI.
+`DSH_CODEX_CLI` can specify an explicit path to the Codex JavaScript entry point. By default, the plugin uses its pinned dependency.
+
+This is an independent community plugin, not an official DeepSeek or OpenAI product.
 
 ## License
 
 MIT
-
-## Local fork compatibility
-
-This fork retains the original author and commits of upstream PR #3 (Harness dynamic-tool permission context).
-Additional compatibility work targets Harness 0.2.1-rc.5: tool-role result messages are accepted alongside legacy result blocks, the obsolete client-runtime module gate is removed, and Codex 0.166.0 supplies the current model catalog. `DSH_CODEX_CLI` may select an explicit Codex JavaScript entry point; otherwise the pinned dependency is used.
-The app-server uses the stdio listener and keeps native environment tools disabled. Harness still owns dynamic-tool permissions; a denied result remains denied.
