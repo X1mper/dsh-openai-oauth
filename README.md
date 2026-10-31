@@ -4,7 +4,7 @@ English | [Русский](README.ru.md) | [简体中文](README.zh-CN.md)
 
 Use OpenAI models with your ChatGPT account in DeepSeek Harness. Harness manages the conversation and executes tools; the official local Codex app-server handles sign-in, credential storage, token refresh, and model access. No OpenAI API key is required.
 
-This is a compatibility fork. The original commits from [upstream PR #3](https://github.com/DGPisces/dsh-openai-oauth/pull/3) retain their authorship; our changes are separate commits.
+This fork was created to support current Harness and make fixes available while they remain unmerged upstream. The original commits from [upstream PR #3](https://github.com/DGPisces/dsh-openai-oauth/pull/3) retain their authorship; our changes are separate commits.
 
 ## Fixes
 

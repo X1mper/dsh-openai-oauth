@@ -4,7 +4,7 @@
 
 通过 ChatGPT 账户在 DeepSeek Harness 中使用 OpenAI 模型。Harness 管理对话并执行工具；OpenAI 官方的本地 Codex app-server 负责登录、凭据保存、令牌刷新和模型访问。无需 OpenAI API Key。
 
-这是一个兼容性修复分支。[上游 PR #3](https://github.com/DGPisces/dsh-openai-oauth/pull/3) 的原始提交保留了作者信息；我们的修改使用独立提交。
+创建此分支是为了支持当前版本的 Harness，并提供尚未合并到上游的修复。[上游 PR #3](https://github.com/DGPisces/dsh-openai-oauth/pull/3) 的原始提交保留了作者信息；我们的修改使用独立提交。
 
 ## 修复内容
 
