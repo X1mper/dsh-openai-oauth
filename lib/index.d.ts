@@ -2,14 +2,16 @@ import type { Context } from '@deepseek-ai/cordis';
 import { LlmAdapter } from '@deepseek-ai/dsh-llm';
 import type { GenerateOptions, LlmModelInfo, LlmResolvedModelInfo, StreamChunk } from '@deepseek-ai/dsh-llm';
 import { AppServer } from './app-server.js';
+import { type ImageStore } from './images.js';
 export declare const name = "llm-codex-app-server";
 export declare const inject: string[];
 export declare class CodexAppServerAdapter extends LlmAdapter {
     private readonly sessionCwd?;
     private readonly server;
     private readonly sessions;
+    private readonly images;
     private modelsCache?;
-    constructor(server?: AppServer, sessionCwd?: ((sessionId: string) => string | undefined) | undefined);
+    constructor(server?: AppServer, sessionCwd?: ((sessionId: string) => string | undefined) | undefined, attachments?: ImageStore);
     private configurationKey;
     private replayState;
     private restoreSession;

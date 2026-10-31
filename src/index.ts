@@ -21,10 +21,11 @@ import { AppServer, type ServerEvent } from './app-server.js'
 import { oauthRoute } from './oauth-http.js'
 import { CodexUsageTracker } from './usage.js'
 import { codexToolSchema } from './tool-schema.js'
+import { ImageBridge, type ImageStore } from './images.js'
 import { recoverySteps, SUMMARY_BUDGET } from './history-input.js'
 
 export const name = 'llm-codex-app-server'
-export const inject = ['llm', 'sessions']
+export const inject = ['llm', 'sessions', 'attachments']
 const PROVIDER = 'openai-codex'
 const REPLAY_KIND = 'codex-app-server'
 
@@ -48,6 +49,7 @@ interface Session {
   fresh: boolean
   assistant?: string
   pendingInput?: string
+  pendingImageMessages?: GenerateOptions['messages']
 }
 
 function digest(value: unknown): string {
@@ -181,7 +183,7 @@ function pendingHistoryChanged(session: Session, options: GenerateOptions, histo
   if (session.history.some((value, index) => history[index] !== value)) return true
   return options.messages.slice(session.history.length).some(message => {
     if (isReply(message)) return false
-    if (message.role === 'user' && message.content.every(block => block.type === 'text')) return false
+    if (message.role === 'user' && message.content.every(block => block.type === 'text' || block.type === 'image')) return false
     if (message.role !== 'assistant') return true
     return message.content.some(block => block.type === 'tool-call' && !expected.has(String(block.id)))
   })
@@ -199,11 +201,13 @@ function eventThreadItem(event: ServerEvent): Record<string, unknown> | undefine
 export class CodexAppServerAdapter extends LlmAdapter {
   private readonly server: AppServer
   private readonly sessions = new Map<string, Session>()
+  private readonly images: ImageBridge
   private modelsCache?: Record<string, unknown>[]
 
-  constructor(server = new AppServer(), private readonly sessionCwd?: (sessionId: string) => string | undefined) {
+  constructor(server = new AppServer(), private readonly sessionCwd?: (sessionId: string) => string | undefined, attachments?: ImageStore) {
     super()
     this.server = server
+    this.images = new ImageBridge(attachments)
   }
 
   private configurationKey(options: GenerateOptions): string {
@@ -303,6 +307,7 @@ export class CodexAppServerAdapter extends LlmAdapter {
       options.system ?? '',
       'You are the model inside DeepSeek Harness. Use only the supplied dynamic tools.',
       'Never call built-in Codex tools. Call at most one dynamic tool at a time.',
+      'In Codex code mode, dynamic tool results are strings, not MCP objects with a content array. A screenshot result can contain text followed by one or more data:image URLs. Always extract the image URLs before calling image(); passing the whole mixed result is invalid. To emit a tool result r safely, use: const s = String(r); const re = /data:image\\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+/g; for (const url of s.match(re) ?? []) image(url); const rest = s.replace(re, "[image emitted]"); if (rest.trim()) text(rest); Never print base64 image data as text or assume result.content exists. Read the emitted image before describing its contents.',
     ].filter(Boolean).join('\n\n')
     // Codex's sandbox governs its native tools, not the dynamic calls executed
     // by Harness. Keep native tools confined without misreporting DSH access.
@@ -364,8 +369,9 @@ export class CodexAppServerAdapter extends LlmAdapter {
     }
     if (session.pending.length > 0) {
       const incoming = options.messages.slice(session.history.length)
-        .filter(message => message.role === 'user' && message.content.every(block => block.type === 'text'))
+        .filter(message => message.role === 'user' && message.content.every(block => block.type === 'text' || block.type === 'image'))
       session.pendingInput = incoming.map(message => textOf(message.content)).join('\n\n')
+      session.pendingImageMessages = incoming
     }
     session.history = history
     return session
@@ -380,15 +386,19 @@ export class CodexAppServerAdapter extends LlmAdapter {
     // Resolve the entire image/result batch before sending any RPC response.
     const responses = await Promise.all(session.pending.map(async call => {
       const result = results.get(call.callId)!
-      return { contentItems: [{ type: 'inputText', text: textOf(result.content) || '(no output)' }], success: result.isError !== true }
+      return { contentItems: await this.images.toolContent(result.content, options.signal), success: result.isError !== true }
     }))
+    const incomingImages = await this.images.historyImages(session.pendingImageMessages ?? [], options.signal)
     options.signal?.throwIfAborted()
     // The outstanding RPC keeps the turn paused. Steer FIRST so tools cannot
     // unblock generation before the new user/agent instructions are accepted.
-    if (session.pendingInput) {
+    if (session.pendingInput || incomingImages.length) {
       if (session.turnId === undefined) throw new LlmError('Missing active Codex turn for steering', 'PROTOCOL_ERROR')
-      await this.server.steerTurn(session.threadId, session.turnId, session.pendingInput)
+      await this.server.steerTurn(session.threadId, session.turnId, incomingImages.length
+        ? [{ type: 'text', text: session.pendingInput ?? '' }, ...incomingImages]
+        : session.pendingInput!)
       session.pendingInput = undefined
+      session.pendingImageMessages = undefined
     }
     for (const [index, call] of session.pending.entries()) {
       this.server.respond(call.requestId, responses[index]!)
@@ -468,6 +478,9 @@ export class CodexAppServerAdapter extends LlmAdapter {
       if (session.pending.length > 0) {
         await this.resumeTools(session, options)
       } else {
+        const lastAssistant = options.messages.findLastIndex(message => message.role === 'assistant')
+        const imageMessages = session.fresh ? options.messages : options.messages.slice(lastAssistant + 1)
+        const imageInput = await this.images.historyImages(imageMessages, options.signal)
         let input: string
         try {
           const recovery = recoverySteps(newTurnText(options, session.fresh), async (fragment, position) => {
@@ -509,7 +522,7 @@ export class CodexAppServerAdapter extends LlmAdapter {
         session.turnId = await this.server.startTurn(session.threadId, {
           model: options.model,
           ...options.reasoningEffort === undefined ? {} : { effort: String(options.reasoningEffort) },
-          input: [{ type: 'text', text: input }],
+          input: [{ type: 'text', text: input }, ...imageInput],
         })
       }
 
@@ -643,7 +656,7 @@ export function apply(ctx: Context): void {
   const sessions = (ctx as Context & {
     sessions: { get(id: string): { header: { cwd?: string } } | undefined }
   }).sessions
-  ctx.llm.registerAdapter([PROVIDER], new CodexAppServerAdapter(server, id => sessions.get(id)?.header.cwd))
+  ctx.llm.registerAdapter([PROVIDER], new CodexAppServerAdapter(server, id => sessions.get(id)?.header.cwd, ctx.attachments))
   ctx.effect(() => () => server.close(), 'llm-codex-app-server.close')
   ctx.inject(['webServer'], (webCtx) => {
     webCtx.effect(() => webCtx.webServer.register(oauthRoute(server)), 'llm-codex-app-server.oauth-route')
