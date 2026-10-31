@@ -1,4 +1,6 @@
 import { isAbsolute } from 'node:path'
+import { createHash } from 'node:crypto'
+import { codexToolSchema } from './tool-schema.js'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import {
@@ -79,12 +81,30 @@ function toolResults(options: GenerateOptions): Map<string, ToolResultBlock> {
   return results
 }
 
+/** Codex reserves mcp__ for native MCP routing, including dynamic tool specs. */
+function toolNames(options: GenerateOptions): Map<string, string> {
+  const names = [...new Set((options.tools ?? []).map(tool => tool.name))]
+  // Reserve unchanged names first, even if they resemble a generated alias.
+  const occupied = new Set(names.filter(name => !name.startsWith('mcp__')))
+  const result = new Map(names.filter(name => !name.startsWith('mcp__')).map(name => [name, name]))
+  for (const name of names.filter(name => name.startsWith('mcp__')).sort()) {
+    const base = 'dsh_' + createHash('sha256').update(name).digest('hex').slice(0, 48)
+    let alias = base
+    let suffix = 0
+    while (occupied.has(alias)) alias = base + '_' + (++suffix)
+    occupied.add(alias)
+    result.set(name, alias)
+  }
+  return result
+}
+
 function toolSpec(options: GenerateOptions): Record<string, unknown>[] {
+  const names = toolNames(options)
   return (options.tools ?? []).map(tool => ({
     type: 'function',
-    name: tool.name,
+    name: names.get(tool.name)!,
     description: tool.description,
-    inputSchema: tool.parameters,
+    inputSchema: codexToolSchema(tool.parameters),
   }))
 }
 
@@ -320,6 +340,12 @@ export class CodexAppServerAdapter extends LlmAdapter {
         }
         if (event.method === 'item/tool/call') {
           const calls = await this.collectToolCalls(session, event, options.signal)
+          const originalNames = new Map([...toolNames(options)].map(([original, alias]) => [alias, original]))
+          for (const call of calls) {
+            const original = originalNames.get(call.name)
+            if (original === undefined) throw new LlmError(`Unknown Codex dynamic tool "${call.name}"`, 'PROTOCOL_ERROR')
+            call.name = original
+          }
           session.pending = calls
           for (const call of calls) {
             const index = nextIndex++
