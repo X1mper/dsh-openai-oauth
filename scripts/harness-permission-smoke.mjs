@@ -58,7 +58,10 @@ try {
     const writes = calls.filter(c => ['edit', 'write'].includes(c.name))
     assert.ok(writes.length, `No DSH edit/write attempted: ${JSON.stringify({ calls, answer: result.stdout })}`)
     const writeIds = new Set(writes.map(c => c.callId))
-    const writeResults = events.filter(e => e.type === 'tool/result').flatMap(e => e.data.message.content).filter(b => writeIds.has(b.toolCallId))
+    const writeResults = events.filter(e => e.type === 'tool/result').flatMap(e => {
+      const message = e.data.message
+      return message.role === 'tool' ? [message] : message.content
+    }).filter(b => writeIds.has(b.toolCallId))
     assert.ok(writeResults.length)
     const after = await readFile(target, 'utf8')
     if (mode === 'danger-full-access') {

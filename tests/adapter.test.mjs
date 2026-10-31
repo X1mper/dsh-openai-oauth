@@ -124,3 +124,14 @@ test('interrupts the Codex turn when Harness cancels', async () => {
   await assert.rejects(result)
   assert.equal(interrupted, true)
 })
+
+for (const denied of [false, true]) {
+  test(`accepts Harness 0.2 tool-role results (denied=${denied})`, async () => {
+    const server = new FakeServer()
+    const adapter = new CodexAppServerAdapter(server)
+    await Array.fromAsync(adapter.stream({ ...base, messages: [{ id: 'u1', role: 'user', content: [{ type: 'text', text: 'write' }] }] }))
+    await Array.fromAsync(adapter.stream({ ...base, messages: [{ role: 'tool', toolCallId: 'call-1', isError: denied, content: [{ type: 'text', text: denied ? 'Denied by Harness' : 'Saved by Harness' }] }] }))
+    assert.equal(server.responses[0].result.success, !denied)
+    assert.equal(server.responses[0].result.contentItems[0].text, denied ? 'Denied by Harness' : 'Saved by Harness')
+  })
+}

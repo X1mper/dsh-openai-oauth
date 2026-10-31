@@ -56,6 +56,21 @@ function newUserText(options: GenerateOptions): string {
 function toolResults(options: GenerateOptions): Map<string, ToolResultBlock> {
   const results = new Map<string, ToolResultBlock>()
   for (const message of options.messages) {
+    // Harness 0.2 represents results as tool-role messages; retain 0.1 blocks too.
+    const toolMessage = message as unknown as {
+      role: string
+      toolCallId?: CallId
+      content: readonly ContentBlock[]
+      isError?: boolean
+    }
+    if (toolMessage.role === 'tool' && typeof toolMessage.toolCallId === 'string') {
+      results.set(toolMessage.toolCallId, {
+        type: 'tool-result',
+        toolCallId: toolMessage.toolCallId,
+        content: [...toolMessage.content],
+        isError: toolMessage.isError,
+      })
+    }
     for (const block of message.content) {
       if (block.type === 'tool-result') results.set(block.toolCallId, block)
     }
