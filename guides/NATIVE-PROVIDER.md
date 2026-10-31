@@ -1,6 +1,6 @@
-# Native provider integration · 0.6.0
+# Native provider integration · 0.6.1
 
-This describes the 0.6.0 release. Restart Harness after upgrading from 0.5.x: the old monolithic plugin must release its registrations before the independent components start.
+This describes the 0.6.1 release. Restart Harness after upgrading from 0.5.x: the old monolithic plugin must release its registrations before the independent components start.
 The integration targets Harness 0.2.1-rc.5 and Codex app-server 0.166.0.
 
 ## Components
@@ -37,8 +37,11 @@ Normal requests never silently summarize their own history. Transport overflow
 and provider context errors return `CONTEXT_WINDOW_EXCEEDED` so Harness can run
 its installed compaction backend and retry against the resulting canonical history.
 Auxiliary summarization requests retain bounded chunking for exceptionally large
-inputs. The normal transport input guard currently uses 200,000 text characters;
-it is separate from the model's token context window.
+inputs. The normal transport input guard uses 1,000,000 UTF-16 code units,
+leaving headroom below Codex's transport ceiling. The 200,000-character auxiliary
+summary budget is separate from both this guard and the model's token context
+window. After cancellation, the adapter rebuilds the exact canonical history in
+a new thread; cancellation alone does not trigger summarization.
 
 ## Idle policy
 
@@ -110,7 +113,7 @@ Live provider checks are available in `scripts/history-smoke.mjs` and
 | Codex continuation | Live `gpt-6.1-sol` test preserved an exact marker through large-history auxiliary summarization and continuation |
 | Packaging | Dry-run package contains all seven component entry points and compiled client; declared Harness minimum is 0.2.1-rc.5 |
 
-The unit/integration suite contains 135 passing tests. Additional engine and
+The unit/integration suite contains 136 passing tests. Additional engine and
 component smoke scripts pass against Harness 0.2.1-rc.5. These checks use an
 isolated profile. Arbitrary third-party plugins and future host versions are
 outside the verified compatibility matrix.
