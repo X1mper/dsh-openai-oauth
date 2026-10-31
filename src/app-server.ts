@@ -9,19 +9,25 @@ export type ServerEvent = { method: string; params: JsonObject; requestId?: stri
 
 class EventQueue {
   private values: ServerEvent[] = []
+  private failure?: Error
   private waiters: Array<{ resolve: (value: ServerEvent) => void; reject: (error: Error) => void }> = []
 
   push(value: ServerEvent): void {
+    if (this.failure !== undefined) return
     const waiter = this.waiters.shift()
     waiter === undefined ? this.values.push(value) : waiter.resolve(value)
   }
 
   fail(error: Error): void {
-    for (const waiter of this.waiters) waiter.reject(error)
+    this.failure ??= error
+    this.values = []
+    for (const waiter of this.waiters) waiter.reject(this.failure)
     this.waiters = []
   }
 
   take(signal?: AbortSignal): Promise<ServerEvent> {
+    if (signal?.aborted) return Promise.reject(signal.reason)
+    if (this.failure !== undefined) return Promise.reject(this.failure)
     const value = this.values.shift()
     if (value !== undefined) return Promise.resolve(value)
     return new Promise((resolve, reject) => {
@@ -35,7 +41,11 @@ class EventQueue {
       }
       if (signal?.aborted) return abort()
       signal?.addEventListener('abort', abort, { once: true })
-      this.waiters.push({ resolve: done, reject })
+      const failed = (error: Error): void => {
+        signal?.removeEventListener('abort', abort)
+        reject(error)
+      }
+      this.waiters.push({ resolve: done, reject: failed })
     })
   }
 }
@@ -205,6 +215,35 @@ export class AppServer {
     return turn.id
   }
 
+  async steerTurn(threadId: string, expectedTurnId: string, input: string | JsonObject[]): Promise<void> {
+    await this.request('turn/steer', { threadId, expectedTurnId, input: typeof input === 'string' ? [{ type: 'text', text: input }] : input })
+  }
+
+  /** Resume only an exact, completed checkpoint, never a stale tool RPC. */
+  async resumeCompletedThread(threadId: string, turnId: string): Promise<boolean> {
+    await this.request('thread/resume', { threadId, excludeTurns: true })
+    const result = await this.request('thread/turns/list', { threadId, limit: 1, sortDirection: 'desc', itemsView: 'notLoaded' })
+    const latest = (result.data as JsonObject[] | undefined)?.[0]
+    if (latest?.id !== turnId || latest.status !== 'completed') {
+      await this.releaseThread(threadId)
+      return false
+    }
+    // Discard initialization notifications and any queue from a dead process.
+    this.queues.set(threadId, new EventQueue())
+    return true
+  }
+
+  async releaseThread(threadId: string): Promise<void> {
+    try {
+      if (this.child !== undefined) await this.request('thread/unsubscribe', { threadId })
+    } finally {
+      this.queues.delete(threadId)
+      for (const [turnId, owner] of this.turnThreads) {
+        if (owner === threadId) this.turnThreads.delete(turnId)
+      }
+    }
+  }
+
   nextEvent(threadId: string, signal?: AbortSignal): Promise<ServerEvent> {
     return this.queue(threadId).take(signal)
   }
@@ -214,6 +253,7 @@ export class AppServer {
   }
 
   async interrupt(threadId: string, turnId: string): Promise<void> {
+    if (this.child === undefined) return
     await this.request('turn/interrupt', { threadId, turnId })
   }
 

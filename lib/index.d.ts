@@ -10,6 +10,9 @@ export declare class CodexAppServerAdapter extends LlmAdapter {
     private readonly sessions;
     private modelsCache?;
     constructor(server?: AppServer, sessionCwd?: ((sessionId: string) => string | undefined) | undefined);
+    private configurationKey;
+    private replayState;
+    private restoreSession;
     providerInfo(): {
         id: string;
         name: string;

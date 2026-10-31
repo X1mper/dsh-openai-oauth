@@ -25,6 +25,10 @@ export declare class AppServer {
     models(): Promise<JsonObject[]>;
     startThread(input: JsonObject): Promise<string>;
     startTurn(threadId: string, input: JsonObject): Promise<string>;
+    steerTurn(threadId: string, expectedTurnId: string, input: string | JsonObject[]): Promise<void>;
+    /** Resume only an exact, completed checkpoint, never a stale tool RPC. */
+    resumeCompletedThread(threadId: string, turnId: string): Promise<boolean>;
+    releaseThread(threadId: string): Promise<void>;
     nextEvent(threadId: string, signal?: AbortSignal): Promise<ServerEvent>;
     respond(id: string | number, result: JsonObject): void;
     interrupt(threadId: string, turnId: string): Promise<void>;

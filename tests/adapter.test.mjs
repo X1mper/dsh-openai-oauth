@@ -75,6 +75,7 @@ test('bridges a Codex dynamic tool call across two Harness model steps', async (
     ...base,
     messages: [
       { id: 'u1', role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: 'ping' }] },
+      { id: 'u2', role: 'user', source: { kind: 'plugin', plugin: 'context' }, content: [{ type: 'text', text: 'runtime context' }] },
       { id: 'a1', role: 'assistant', source: { kind: 'model', provider: 'openai-codex', model: 'gpt-5.6-sol' }, content: [{ type: 'tool-call', id: 'call-1', name: 'echo', arguments: '{"text":"ping"}' }] },
       { id: 't1', role: 'user', source: { kind: 'tool', callId: 'call-1' }, content: [{ type: 'tool-result', toolCallId: 'call-1', content: [{ type: 'text', text: 'pong-from-harness' }], isError: false }] },
     ],
@@ -115,12 +116,13 @@ test('interrupts the Codex turn when Harness cancels', async () => {
   server.startTurn = async () => 'turn-1'
   server.interrupt = async () => { interrupted = true }
   const controller = new AbortController()
+  // Cancel after turn/start, not before the adapter has allocated any turn.
+  server.startTurn = async () => { queueMicrotask(() => controller.abort()); return 'turn-1' }
   const result = Array.fromAsync(new CodexAppServerAdapter(server).stream({
     ...base,
     signal: controller.signal,
     messages: [{ id: 'u1', role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: 'wait' }] }],
   }))
-  controller.abort()
   await assert.rejects(result)
   assert.equal(interrupted, true)
 })
@@ -157,4 +159,51 @@ test('rejects a relative session directory instead of resolving it against proce
   const adapter = new CodexAppServerAdapter(server, () => 'relative/workspace')
   await assert.rejects(async () => Array.fromAsync(adapter.stream({ ...base, messages: [] })), /must be absolute/)
   assert.equal(server.threadInput, undefined)
+})
+
+function usageEvent(inputTokens, cachedInputTokens, outputTokens, reasoningOutputTokens = 0) {
+  const total = { inputTokens, cachedInputTokens, outputTokens, reasoningOutputTokens, totalTokens: inputTokens + outputTokens }
+  return { method: 'thread/tokenUsage/updated', params: { threadId: 'thread-1', turnId: 'turn-1', tokenUsage: { total, last: total } } }
+}
+
+test('emits actual usage at tool boundaries, including notifications inside the tool burst', async () => {
+  const server = new FakeServer()
+  const start = server.startTurn.bind(server)
+  server.startTurn = async (...args) => {
+    const id = await start(...args)
+    server.events.push(usageEvent(100, 60, 20, 8))
+    return id
+  }
+  const respond = server.respond.bind(server)
+  server.respond = (...args) => {
+    respond(...args)
+    server.events.splice(-1, 0, usageEvent(260, 200, 35, 13), usageEvent(260, 200, 35, 13))
+  }
+  const adapter = new CodexAppServerAdapter(server)
+  const first = await Array.fromAsync(adapter.stream({ ...base, messages: [{ role: 'user', content: [{ type: 'text', text: 'ping' }] }] }))
+  assert.deepEqual(first.filter(c => c.type === 'usage').map(c => c.usage), [{ inputTokens: 40, outputTokens: 20, cacheReadTokens: 60, cacheWriteTokens: 0, reasoningTokens: 8, totalTokens: 120 }])
+  assert.equal(first.at(-1).type, 'finish')
+  const second = await Array.fromAsync(adapter.stream({ ...base, messages: [{ role: 'tool', toolCallId: 'call-1', content: [{ type: 'text', text: 'done' }] }] }))
+  assert.deepEqual(second.filter(c => c.type === 'usage').map(c => c.usage), [{ inputTokens: 20, outputTokens: 15, cacheReadTokens: 140, cacheWriteTokens: 0, reasoningTokens: 5, totalTokens: 175 }])
+  assert.equal(second.at(-1).type, 'finish')
+})
+
+test('emits no fabricated usage for a server without token notifications', async () => {
+  const adapter = new CodexAppServerAdapter(new FakeServer())
+  const chunks = await Array.fromAsync(adapter.stream({ ...base, messages: [] }))
+  assert.equal(chunks.some(c => c.type === 'usage'), false)
+})
+
+test('preserves observed usage before surfacing a failed turn', async () => {
+  const server = new FakeServer()
+  server.startTurn = async () => {
+    server.events.push(usageEvent(10, 2, 5, 1), { method: 'turn/completed', params: { threadId: 'thread-1', turn: { id: 'turn-1', status: 'failed', error: { message: 'test failure' } } } })
+    return 'turn-1'
+  }
+  const chunks = []
+  await assert.rejects(async () => {
+    for await (const chunk of new CodexAppServerAdapter(server).stream({ ...base, messages: [] })) chunks.push(chunk)
+  }, /test failure/)
+  assert.equal(chunks.filter(c => c.type === 'usage').length, 1)
+  assert.equal(chunks.find(c => c.type === 'usage').usage.totalTokens, 15)
 })
