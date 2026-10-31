@@ -207,3 +207,46 @@ test('preserves observed usage before surfacing a failed turn', async () => {
   assert.equal(chunks.filter(c => c.type === 'usage').length, 1)
   assert.equal(chunks.find(c => c.type === 'usage').usage.totalTokens, 15)
 })
+
+test('effective catalog context is exposed and live provider capacity takes precedence', async () => {
+  const server = new FakeServer()
+  const models = server.models.bind(server)
+  server.models = async () => (await models()).map(m => ({...m,contextWindow:190000}))
+  server.startTurn = async () => {
+    server.events.push({method:'thread/tokenUsage/updated',params:{tokenUsage:{modelContextWindow:180000}}},
+      {method:'item/agentMessage/delta',params:{itemId:'answer',delta:'ok'}},
+      {method:'item/completed',params:{item:{id:'answer',type:'agentMessage'}}},
+      {method:'turn/completed',params:{turn:{status:'completed'}}})
+    return 'turn'
+  }
+  const adapter = new CodexAppServerAdapter(server)
+  assert.equal((await adapter.resolveModel(base.provider,base.model)).context.contextWindow,190000)
+  await Array.fromAsync(adapter.stream({...base,messages:[{role:'user',content:[{type:'text',text:'hello'}]}]}))
+  assert.equal((await adapter.resolveModel(base.provider,base.model)).context.contextWindow,180000)
+})
+
+
+test('empty completed response is a recoverable provider failure, not a successful silent answer', async () => {
+ const server = new FakeServer()
+ server.startTurn=async()=>{server.events.push({method:'turn/completed',params:{turn:{status:'completed'}}});return 'turn'}
+ await assert.rejects(Array.fromAsync(new CodexAppServerAdapter(server).stream({...base,messages:[]})),e=>e.code==='EMPTY_RESPONSE')
+})
+
+for (const method of ['startThread', 'startTurn']) {
+  test(`RPC overflow at ${method} reaches native Harness recovery`, async () => {
+    const { CodexRpcError } = await import('../lib/rpc-error.js')
+    const server = new FakeServer()
+    server[method] = async () => { throw new CodexRpcError({ code: -32000, message: 'Context exhausted', data: { codexErrorInfo: 'contextWindowExceeded' } }) }
+    const adapter = new CodexAppServerAdapter(server)
+    await assert.rejects(Array.fromAsync(adapter.stream({ ...base, messages: [
+      { id: 'u1', role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: 'ping' }] },
+    ] })), error => error.code === 'CONTEXT_WINDOW_EXCEEDED' && error.message === 'Context exhausted')
+  })
+}
+
+test('account failure during model resolution preserves credential classification', async () => {
+  const { CodexRpcError } = await import('../lib/rpc-error.js')
+  const server = new FakeServer()
+  server.account = async () => { throw new CodexRpcError({ code: -32000, message: 'Login expired', data: { codexErrorInfo: 'unauthorized' } }) }
+  await assert.rejects(new CodexAppServerAdapter(server).resolveModel(base.provider, base.model), error => error.code === 'INVALID_CREDENTIAL')
+})

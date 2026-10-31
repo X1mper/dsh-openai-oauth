@@ -1,5 +1,5 @@
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment';
-import type { ContentBlock } from '@deepseek-ai/dsh-llm';
+import { type ReadableBlock as ContentBlock } from './legacy-content.js';
 export type ImageStore = Pick<AttachmentStore, 'readImage'>;
 export type InputPart = {
     type: 'text';

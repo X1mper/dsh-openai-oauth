@@ -69,3 +69,19 @@ test('steering targets the active turn and resume verifies persisted latest turn
   assert.equal((await server.nextEvent('thread')).method, 'turn/started')
   assert.equal(await server.resumeCompletedThread('thread', 'stale'), false)
 })
+
+test('JSON-RPC failures preserve code and structured data without JSON in the message', async () => {
+  const { AppServer } = await import('../lib/app-server.js')
+  const { CodexRpcError } = await import('../lib/rpc-error.js')
+  const server = new AppServer()
+  const pending = new Promise((resolve, reject) => server.pending.set(17, { resolve, reject }))
+  server.receive({ id: 17, error: { code: -32000, message: 'Context exhausted', data: { codexErrorInfo: 'contextWindowExceeded' } } })
+  await assert.rejects(pending, error => {
+    assert.ok(error instanceof CodexRpcError)
+    assert.equal(error.message, 'Context exhausted')
+    assert.equal(error.code, -32000)
+    assert.deepEqual(error.data, { codexErrorInfo: 'contextWindowExceeded' })
+    return true
+  })
+  assert.equal(server.pending.size, 0)
+})

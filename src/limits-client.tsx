@@ -1,6 +1,7 @@
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { useEffect, useId, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { LimitWindow } from './limits.js'
 

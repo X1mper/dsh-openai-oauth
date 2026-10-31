@@ -1,5 +1,5 @@
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
-import type { ContentBlock } from '@deepseek-ai/dsh-llm'
+import { isLegacyToolResult, type ReadableBlock as ContentBlock } from './legacy-content.js'
 import { LlmError } from '@deepseek-ai/dsh-llm'
 
 export type ImageStore = Pick<AttachmentStore, 'readImage'>
@@ -29,7 +29,7 @@ export class ImageBridge {
         if ((block as { offloaded?: boolean }).offloaded) {
           parts.push({ type: 'inputText', text: `[Previously offloaded image: ${block.attachment.name ?? block.attachment.attachmentId}; image bytes are not included.]` })
         } else parts.push({ type: 'inputImage', imageUrl: await this.url(block, signal) })
-      } else if (block.type === 'tool-result') parts.push(...await this.toolContent(block.content, signal))
+      } else if (isLegacyToolResult(block)) parts.push(...await this.toolContent(block.content, signal))
     }
     return parts.length ? parts : [{ type: 'inputText', text: '(no output)' }]
   }
@@ -45,7 +45,7 @@ export class ImageBridge {
         if (block.type === 'image' && !(block as { offloaded?: boolean }).offloaded) {
           parts.push({ type: 'text', text: `[Image ${block.attachment.attachmentId} from ${label}]` },
             { type: 'image', url: await this.url(block, signal) })
-        } else if (block.type === 'tool-result') await visit(block.content, `${label}, tool result ${block.toolCallId}`)
+        } else if (isLegacyToolResult(block)) await visit(block.content, `${label}, tool result ${block.toolCallId}`)
       }
     }
     for (const [index, message] of messages.entries()) await visit(message.content, `message ${index + 1} (${message.role})`)

@@ -1,3 +1,15 @@
 - insert:
+    - id: codex-runtime
+      name: dsh-openai-oauth/runtime
     - id: llm-codex-app-server
       name: dsh-openai-oauth
+    - id: codex-web-search
+      name: dsh-openai-oauth/search
+    - id: codex-web-fetch
+      name: dsh-openai-oauth/fetch
+    - id: codex-images
+      name: dsh-openai-oauth/images
+    - id: codex-account
+      name: dsh-openai-oauth/account
+    - id: codex-context-policy
+      name: dsh-openai-oauth/context

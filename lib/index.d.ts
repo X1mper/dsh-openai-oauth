@@ -1,35 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis';
-import { LlmAdapter } from '@deepseek-ai/dsh-llm';
-import type { GenerateOptions, LlmModelInfo, LlmResolvedModelInfo, StreamChunk } from '@deepseek-ai/dsh-llm';
-import { AppServer } from './app-server.js';
-import { type ImageStore } from './images.js';
+import './runtime.js';
+export { CodexAppServerAdapter } from './adapter.js';
 export declare const name = "llm-codex-app-server";
 export declare const inject: string[];
-export declare class CodexAppServerAdapter extends LlmAdapter {
-    private readonly sessionCwd?;
-    private readonly server;
-    private readonly sessions;
-    private readonly images;
-    private modelsCache?;
-    constructor(server?: AppServer, sessionCwd?: ((sessionId: string) => string | undefined) | undefined, attachments?: ImageStore);
-    private configurationKey;
-    private replayState;
-    private restoreSession;
-    providerInfo(): {
-        id: string;
-        name: string;
-    };
-    private models;
-    listModels(): Promise<readonly LlmModelInfo[]>;
-    resolveModel(provider: string, modelId: string): Promise<LlmResolvedModelInfo>;
-    private createSession;
-    private session;
-    private resumeTools;
-    private nextEvent;
-    private collectToolCalls;
-    stream(options: GenerateOptions): AsyncIterable<StreamChunk>;
-}
-export declare function apply(ctx: Context): Promise<void>;
+export declare function apply(ctx: Context): void;
 declare const _default: {
     name: string;
     inject: string[];

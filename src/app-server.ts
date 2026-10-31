@@ -2,7 +2,9 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { mkdir } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { createInterface } from 'node:readline'
+import { readModelContext } from './model-context.js'
 import { codexHome } from './paths.js'
+import { CodexRpcError } from './rpc-error.js'
 
 type JsonObject = Record<string, unknown>
 export type ServerEvent = { method: string; params: JsonObject; requestId?: string | number }
@@ -127,7 +129,7 @@ export class AppServer {
       const request = this.pending.get(id)
       if (request === undefined) return
       this.pending.delete(id)
-      if (message.error !== undefined) request.reject(new Error(JSON.stringify(message.error)))
+      if (message.error !== undefined) request.reject(new CodexRpcError(message.error))
       else request.resolve(message.result as JsonObject)
       return
     }
@@ -195,7 +197,10 @@ export class AppServer {
 
   async models(): Promise<JsonObject[]> {
     const result = await this.request('model/list', {})
-    return result.data as JsonObject[]
+    return Promise.all((result.data as JsonObject[]).map(async model => {
+      const capacity = await readModelContext(String(model.model ?? model.id))
+      return capacity === undefined ? model : { ...model, contextWindow: capacity }
+    }))
   }
 
   async startThread(input: JsonObject): Promise<string> {

@@ -1,5 +1,5 @@
 import type { AttachmentStore, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment';
-import type { ContentBlock } from '@deepseek-ai/dsh-llm';
+import { type ReadableBlock as ContentBlock } from './legacy-content.js';
 import type { Context } from '@deepseek-ai/cordis';
 import { AppServer } from './app-server.js';
 type Store = Pick<AttachmentStore, 'readImage' | 'saveImage'>;

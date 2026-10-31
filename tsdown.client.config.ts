@@ -8,7 +8,7 @@ export default {
   target: 'es2022',
   dts: false,
   clean: false,
-  deps: { neverBundle: ['react', 'react/jsx-runtime'] },
+  deps: { neverBundle: ['react', 'react/jsx-runtime', '@deepseek-ai/dsh-client-ui-primitives'] },
   outputOptions: {
     entryFileNames: 'client.js',
     exports: 'named',

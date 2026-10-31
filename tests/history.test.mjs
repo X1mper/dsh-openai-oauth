@@ -49,7 +49,9 @@ class PendingServer extends TextServer {
   respond(id, value) {
     this.operations.push('respond')
     this.responses.push({ id, value })
-    this.events.push({ method: 'turn/completed', params: { turn: { id: 'turn', status: 'completed' } } })
+    this.events.push({method:'item/agentMessage/delta',params:{itemId:'answer',delta:'Completed tool work'}},
+      {method:'item/completed',params:{item:{id:'answer',type:'agentMessage'}}},
+      { method: 'turn/completed', params: { turn: { id: 'turn', status: 'completed' } } })
   }
 }
 const callMessage = { role: 'assistant', content: [{ type: 'tool-call', id: 'c', name: 'echo', arguments: '{}' }] }
@@ -199,8 +201,8 @@ test('model, system, or tool changes rebuild canonical history safely', async ()
   for (const turn of server.turns) assert.match(turn.input[0].text, /first/)
 })
 
-test('large recovery and compaction use isolated bounded summaries and include usage', async () => {
-  for (const purpose of [undefined, 'compaction']) {
+test('large auxiliary compaction uses isolated bounded summaries and includes usage', async () => {
+  for (const purpose of ['compaction']) {
     const server = new TextServer()
     const start = server.startTurn.bind(server)
     server.startTurn = async (...args) => {
@@ -226,17 +228,9 @@ test('large recovery and compaction use isolated bounded summaries and include u
   }
 })
 
-test('recovery emits visible progress before starting summary work', async () => {
-  const server = new TextServer()
-  const adapter = new CodexAppServerAdapter(server)
-  const iterator = adapter.stream({ ...base, messages: [user('x'.repeat(250_000))] })
-  const first = await iterator.next()
-  assert.equal(first.value.type, 'block-start')
-  assert.equal(first.value.blockType, 'reasoning')
-  assert.equal(server.turns.length, 0)
-  const progress = await iterator.next()
-  assert.match(progress.value.text, /Восстановление истории/)
-  await iterator.return()
+test('oversized normal history delegates compaction to Harness before any model request', async () => {
+  const server = new TextServer(), adapter = new CodexAppServerAdapter(server)
+  await assert.rejects(run(adapter, {messages:[user('x'.repeat(250000))]}), error => error.code === 'CONTEXT_WINDOW_EXCEEDED')
   assert.equal(server.turns.length, 0)
 })
 
@@ -254,7 +248,7 @@ test('startTurn RPC rejection invalidates session before a full canonical retry'
 
 test('auxiliary threads are released and early iterator close interrupts a live turn', async () => {
   const server = new TextServer(); server.released = []; server.interrupted = []
-  server.releaseThread = async id => { server.released.push(id) }
+  server.releaseThread = async id => { server.released.push(id); server.events = [] }
   server.interrupt = async id => { server.interrupted.push(id) }
   const adapter = new CodexAppServerAdapter(server)
   await run(adapter, { purpose: 'compaction', maxTokens: 100, messages: [user('summarize')] })
@@ -347,7 +341,7 @@ for (const change of ['history', 'assistant', 'model', 'session', 'remote', 'pen
     server.resumeCompletedThread = async () => { resumes++; return false }
     if (change === 'history') first = user('edited history')
     if (change === 'assistant') message.content = [{ type: 'text', text: 'edited answer' }]
-    if (change === 'pending') message.source.replayState.resumable = false
+    if (change === 'pending') message.source.replayState.response.resumable = false
     await run(new CodexAppServerAdapter(server), { messages: [first, message, user('continue')],
       ...(change === 'model' ? { model: 'other' } : {}), ...(change === 'session' ? { sessionId: 'fork' } : {}) })
     assert.equal(resumes, change === 'remote' ? 1 : 0)
@@ -406,4 +400,18 @@ test('resumed usage excludes previously billed cumulative tokens', async () => {
   server.resumeCompletedThread = async () => true
   const next = await run(new CodexAppServerAdapter(server), { messages: [first, completedMessage(chunks), user('next')] })
   assert.equal(next.find(c => c.type === 'usage').usage.totalTokens, 5)
+})
+
+
+test('Harness system messages become provider instructions and changes invalidate the live thread', async () => {
+  const server = new TextServer(), adapter = new CodexAppServerAdapter(server)
+  const prompt = text => ({ role: 'system', content: [{type:'text',text}] })
+  const messages = [user('task')]
+  await run(adapter, { system: undefined, messages: [prompt('Policy one'), ...messages] })
+  assert.match(server.threads[0].baseInstructions, /Policy one/)
+  assert.doesNotMatch(server.turns[0].input[0].text, /Policy one/)
+  await run(adapter, { system: undefined, messages: [prompt('Policy two'), ...messages, assistant('Checkpoint with actual task details'), user('next')] })
+  assert.equal(server.threads.length, 2)
+  assert.match(server.threads[1].baseInstructions, /Policy two/)
+  assert.doesNotMatch(server.threads[1].baseInstructions, /Policy one/)
 })

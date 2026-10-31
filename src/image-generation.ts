@@ -4,7 +4,7 @@ import { isAbsolute, join, relative, sep } from 'node:path'
 import { codexHome } from './paths.js'
 import { recordUsage } from './session-records.js'
 import type { AttachmentStore, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
-import type { ContentBlock } from '@deepseek-ai/dsh-llm'
+import { isLegacyToolResult, type ReadableBlock as ContentBlock } from './legacy-content.js'
 import { LlmError } from '@deepseek-ai/dsh-llm'
 import type { Context } from '@deepseek-ai/cordis'
 import { AppServer } from './app-server.js'
@@ -44,7 +44,7 @@ export function resolveEditImages(ids: readonly string[], messages: readonly Mes
   const visit = (blocks: readonly ContentBlock[]): void => {
     for (const block of blocks) {
       if (block.type === 'image' && !(block as { offloaded?: boolean }).offloaded) refs.set(block.attachment.attachmentId, block.attachment)
-      if (block.type === 'tool-result') visit(block.content)
+      if (isLegacyToolResult(block)) visit(block.content)
     }
   }
   for (const message of messages) visit(message.content)

@@ -1,6 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import type {} from '@deepseek-ai/dsh-client-locale/client'
+import { Button, DisclosureRow, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
+import { ContextSettings } from './context-settings.js'
+import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { ContextPolicyConfig } from './context-policy.js'
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { SettingsSectionOwnerProps } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { applyLimits } from './limits-client.js'
@@ -19,9 +25,13 @@ interface Status {
   models: Model[]
 }
 
-const zh = typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('zh')
-const copy = zh ? {
-  title: 'OpenAI OAuth',
+function pageCopy(language: string) {
+const ru = language.startsWith('ru')
+const zh = language.startsWith('zh')
+return ru ? {
+  title: 'OpenAI · Codex', intro: 'Аккаунт ChatGPT, компоненты и контекст диалогов.', connected: 'Подключён', disconnected: 'Не подключён', login: 'Войти через ChatGPT', waiting: 'Ожидание авторизации…', logout: 'Выйти', refresh: 'Обновить', models: 'Доступные модели', noModels: 'Модели появятся после входа.', popup: 'Продолжить вход в браузере',
+} : zh ? {
+  title: 'OpenAI · Codex',
   intro: '使用 ChatGPT 账户连接 GPT 模型。登录和 token 刷新完全由本机 Codex app-server 管理。',
   connected: '已连接',
   disconnected: '尚未连接',
@@ -33,7 +43,7 @@ const copy = zh ? {
   noModels: '登录后将显示账户可用的模型。',
   popup: '如果登录页没有自动打开，请点击这里继续。',
 } : {
-  title: 'OpenAI OAuth',
+  title: 'OpenAI · Codex',
   intro: 'Connect GPT models with your ChatGPT account. The local Codex app-server owns login and token refresh.',
   connected: 'Connected',
   disconnected: 'Not connected',
@@ -44,6 +54,8 @@ const copy = zh ? {
   models: 'Available models',
   noModels: 'Models available to your account appear after sign-in.',
   popup: 'If the sign-in page did not open, continue here.',
+}
+
 }
 
 async function request<T>(path = '', method = 'GET'): Promise<T> {
@@ -64,17 +76,17 @@ const styles: Record<string, CSSProperties> = {
   card: { border: '1px solid var(--dsw-alias-border-l2-darkmode-thin, #888)', borderRadius: 12, padding: 20 },
   row: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
   status: { display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 },
-  dot: { width: 9, height: 9, borderRadius: '50%' },
   meta: { color: 'var(--dsw-alias-label-secondary, currentColor)', fontSize: 13, marginTop: 6 },
   actions: { display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 18 },
-  button: { border: '1px solid var(--dsw-alias-border-l2-darkmode-thin, #888)', borderRadius: 8, padding: '8px 12px', cursor: 'pointer', background: 'var(--dsw-specific-input-major, transparent)', color: 'var(--dsw-alias-label-primary, inherit)' },
-  primary: { background: 'var(--primary-color, #2563eb)', borderColor: 'transparent', color: '#fff' },
   error: { color: '#b42318', marginTop: 12 },
   models: { marginTop: 24 },
   list: { margin: '10px 0 0', paddingLeft: 20, lineHeight: 1.8 },
 }
 
-export function OpenAiOAuthSection(_props: SettingsSectionOwnerProps): ReactNode {
+export function OpenAiOAuthSection({ policy, manageComponents, language = 'en' }: SettingsSectionOwnerProps & { language?: string; policy?: ConfigForm<ContextPolicyConfig>; manageComponents?: () => void }): ReactNode {
+  const ru = language.startsWith('ru')
+  const copy = pageCopy(language)
+  const [modelsOpen, setModelsOpen] = useState(false)
   const [status, setStatus] = useState<Status | undefined>()
   const [busy, setBusy] = useState(false)
   const [waiting, setWaiting] = useState(false)
@@ -145,8 +157,8 @@ export function OpenAiOAuthSection(_props: SettingsSectionOwnerProps): ReactNode
         <div style={styles.row}>
           <div>
             <div style={styles.status} role="status" aria-live="polite">
-              <span style={{ ...styles.dot, background: connected ? '#12b76a' : '#98a2b3' }} />
-              {connected ? copy.connected : copy.disconnected}
+              <StateDot state={status === undefined ? 'ongoing' : connected ? 'done' : 'idle'} />
+              {status === undefined ? (error ? (ru ? 'Не удалось получить статус' : 'Status unavailable') : (ru ? 'Подключение…' : 'Connecting…')) : connected ? copy.connected : copy.disconnected}
             </div>
             {connected
               ? <div style={styles.meta}>{[status.email, status.planType].filter(Boolean).join(' · ')}</div>
@@ -155,31 +167,53 @@ export function OpenAiOAuthSection(_props: SettingsSectionOwnerProps): ReactNode
         </div>
         <div style={styles.actions}>
           {connected
-            ? <button type="button" style={styles.button} disabled={busy} onClick={() => { void logout() }}>{copy.logout}</button>
-            : <button type="button" style={{ ...styles.button, ...styles.primary }} disabled={busy || waiting} onClick={() => { void login() }}>{waiting ? copy.waiting : copy.login}</button>}
-          <button type="button" style={styles.button} disabled={busy} onClick={() => { void refresh() }}>{copy.refresh}</button>
+            ? <Button variant="outline" type="button" disabled={busy} onClick={() => { void logout() }}>{copy.logout}</Button>
+            : <Button variant="primary" type="button" disabled={busy || waiting} onClick={() => { void login() }}>{waiting ? copy.waiting : copy.login}</Button>}
+          <Button variant="outline" type="button" disabled={busy} onClick={() => { void refresh() }}>{copy.refresh}</Button>
         </div>
         {authUrl === undefined ? null : <p><a href={authUrl} target="_blank" rel="noreferrer">{copy.popup}</a></p>}
         {error === undefined ? null : <p style={styles.error} role="alert">{error}</p>}
         <div style={styles.models}>
-          <strong>{copy.models}</strong>
+          <DisclosureRow icon={null} title={`${copy.models}${status?.models.length ? ` (${status.models.length})` : ''}`} open={modelsOpen} expandable onToggle={() => setModelsOpen(open => !open)} expandOnRowClick>
           {status?.models.length
             ? <ul style={styles.list}>{status.models.map(model => <li key={model.id}>{model.name} <code>{model.id}</code></li>)}</ul>
             : <p style={styles.meta}>{copy.noModels}</p>}
+          </DisclosureRow>
         </div>
+      </div>
+      <div style={styles.models}>
+        <h3>{ru ? 'Компоненты' : 'Components'}</h3>
+        <p style={styles.intro}>{ru ? 'Провайдер, поиск, загрузка страниц, картинки и политика контекста включаются независимо в карточке плагина.' : 'Provider, search, page fetching, images and context policy can be enabled independently in the plugin card.'}</p>
+        {manageComponents ? <Button variant="outline" onClick={manageComponents}>{ru ? 'Управлять компонентами' : 'Manage components'}</Button> : null}
+      </div>
+      <div style={styles.models}>
+        <h3>{ru ? 'Контекст и старые сессии' : 'Context and older sessions'}</h3>
+        <p style={styles.intro}>{ru ? 'Сжатие выполняет Harness: его плагины контекста продолжают управлять историей. Интервал простоя — наша политика, а не гарантированный срок кэша OpenAI.' : 'Harness performs compaction, so context plugins keep control of history. The idle interval is our policy, not a guaranteed OpenAI cache lifetime.'}</p>
+        {policy ? <ContextSettings scope={policy} ru={ru} /> : null}
       </div>
     </section>
   )
 }
 
-export const inject = ['slots', 'locale']
+export const inject = ['slots', 'locale', 'configForms']
 
 export function apply(ctx: ClientContext): void {
   applyLimits(ctx)
+  const policy = ctx.configForms.get<ContextPolicyConfig>('codex-context-policy')
+  const subscribeLocale = (listener: () => void) => ctx.locale.subscribe(listener)
+  const getLocale = () => ctx.locale.getLocale().active
+  const Section = (props: SettingsSectionOwnerProps) => {
+    const language = useSyncExternalStore(subscribeLocale, getLocale)
+    const navigation = ctx.get('pluginNavigation') as { openBundle(name: string): void } | undefined
+    return <OpenAiOAuthSection {...props} language={language} policy={policy} {...(navigation ? { manageComponents: () => {
+      props.close()
+      navigation.openBundle('dsh-openai-oauth')
+    } } : {})} />
+  }
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: 'openai-oauth',
     order: 11,
-    label: () => 'OpenAI OAuth',
-  }, OpenAiOAuthSection))
+    label: () => 'OpenAI · Codex',
+  }, Section))
 }

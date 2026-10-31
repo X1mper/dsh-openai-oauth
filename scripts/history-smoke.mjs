@@ -35,13 +35,13 @@ try {
     assistant('Acknowledged the project identifier.'),
     user('now', 'What is the exact project identifier from the earliest user message? Return only that identifier.'),
   ]
-  const recovered = await run({ messages })
-  assert.match(recovered, /violet-lighthouse-731/)
+  await assert.rejects(run({ messages }), error => error.code === 'CONTEXT_WINDOW_EXCEEDED')
+  assert.equal(calls.length, 0)
   const summary = await run({ purpose: 'compaction', maxTokens: 1024, messages: [
-    ...messages, assistant(recovered), user('compact', 'Summarize the task and preserve the exact project identifier.'),
+    ...messages, user('compact', 'Summarize the task and preserve the exact project identifier.'),
   ] })
   assert.match(summary, /violet-lighthouse-731/)
-  const continued = await run({ messages: [...messages, assistant(recovered), user('next', 'Repeat the exact project identifier only.')] })
+  const continued = await run({ messages: [user('checkpoint', summary), user('next', 'Repeat the exact project identifier only.')] })
   assert.match(continued, /violet-lighthouse-731/)
-  console.log(JSON.stringify({ passed: true, model, recovered, summary, continued, calls }, null, 2))
+  console.log(JSON.stringify({ passed: true, model, overflowDelegated: true, summary, continued, calls }, null, 2))
 } finally { server.close() }

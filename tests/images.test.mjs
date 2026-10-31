@@ -10,7 +10,7 @@ const url = 'data:image/png;base64,AQID'
 class Server {
   threads = []; turns = []; events = []; responses = []; steers = []
   async startThread(input) { this.threads.push(input); return 'thread' }
-  async startTurn(thread, input) { this.turns.push(input); this.events.push({ method: 'turn/completed', params: { turn: { id: 'turn', status: 'completed' } } }); return 'turn' }
+  async startTurn(thread, input) { this.turns.push(input); this.events.push({method:'item/agentMessage/delta',params:{itemId:'answer',delta:'Image inspected'}}, {method:'item/completed',params:{item:{id:'answer',type:'agentMessage'}}}, { method: 'turn/completed', params: { turn: { id: 'turn', status: 'completed' } } }); return 'turn' }
   async nextEvent(_, signal) {
     if (this.events.length) return this.events.shift()
     return new Promise((resolve, reject) => {
@@ -19,7 +19,7 @@ class Server {
     })
   }
   async steerTurn(...args) { this.steers.push(args) }
-  respond(id, result) { this.responses.push(result); this.events.push({ method: 'turn/completed', params: { turn: { id: 'turn', status: 'completed' } } }) }
+  respond(id, result) { this.responses.push(result); this.events.push({method:'item/agentMessage/delta',params:{itemId:'answer',delta:'Image inspected'}}, {method:'item/completed',params:{item:{id:'answer',type:'agentMessage'}}}, { method: 'turn/completed', params: { turn: { id: 'turn', status: 'completed' } } }) }
   async interrupt() {}
   async releaseThread() {}
 }
