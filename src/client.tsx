@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type { SettingsSectionOwnerProps } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import { applyLimits } from './limits-client.js'
 
 const ENDPOINT = '/api/codex-oauth'
 
@@ -171,9 +172,10 @@ export function OpenAiOAuthSection(_props: SettingsSectionOwnerProps): ReactNode
   )
 }
 
-export const inject = ['slots']
+export const inject = ['slots', 'locale']
 
 export function apply(ctx: ClientContext): void {
+  applyLimits(ctx)
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: 'openai-oauth',

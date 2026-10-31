@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { isIP } from 'node:net'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import type { AppServer } from './app-server.js'
+import { limitWindows } from './limits.js'
 
 const PATH = '/api/codex-oauth'
 
@@ -45,13 +46,20 @@ function json(res: ServerResponse, status: number, body: unknown): void {
 }
 
 export async function handleOAuthRequest(
-  server: Pick<AppServer, 'account' | 'models' | 'startChatGptLogin' | 'logout'>,
+  server: Pick<AppServer, 'account' | 'models' | 'startChatGptLogin' | 'logout'> & Partial<Pick<AppServer, 'rateLimits'>>,
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<void> {
   if (!trusted(req)) return json(res, 403, { error: 'OAuth controls are available only from the local Harness UI.' })
   const path = new URL(req.url ?? '/', 'http://localhost').pathname
   try {
+    if (req.method === 'GET' && path === `${PATH}/limits`) {
+      if (server.rateLimits === undefined) return json(res, 503, { error: 'Codex limits are unavailable.' })
+      const account = await server.account(false)
+      if (account?.type !== 'chatgpt') return json(res, 200, { authenticated: false, windows: [] })
+      const result = await server.rateLimits()
+      return json(res, 200, { authenticated: true, windows: limitWindows(result), updatedAt: Date.now() })
+    }
     if (req.method === 'GET' && path === PATH) {
       const account = await server.account(false)
       if (account?.type !== 'chatgpt') return json(res, 200, { authenticated: false, models: [] })

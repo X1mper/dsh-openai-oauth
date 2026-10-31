@@ -179,6 +179,10 @@ export class AppServer {
     await this.request('account/logout', {})
   }
 
+  async rateLimits(): Promise<JsonObject> {
+    return this.request('account/rateLimits/read', {})
+  }
+
   async models(): Promise<JsonObject[]> {
     const result = await this.request('model/list', {})
     return result.data as JsonObject[]

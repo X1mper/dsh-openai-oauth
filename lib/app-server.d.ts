@@ -21,6 +21,7 @@ export declare class AppServer {
     account(refreshToken?: boolean): Promise<JsonObject | null>;
     startChatGptLogin(): Promise<JsonObject>;
     logout(): Promise<void>;
+    rateLimits(): Promise<JsonObject>;
     models(): Promise<JsonObject[]>;
     startThread(input: JsonObject): Promise<string>;
     startTurn(threadId: string, input: JsonObject): Promise<string>;
