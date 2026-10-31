@@ -56,7 +56,7 @@ try {
     images.push(block.attachment)
   }
   assert.notEqual(images[0].attachmentId, images[1].attachmentId)
-  const audit = events.filter(e => e.type === 'image/codex-llm-request')
+  const audit = events.filter(e => e.type === 'plugin:dsh-openai-oauth/image-llm-request')
   assert.deepEqual(audit.map(e => e.data.mode), ['generate', 'edit'])
   assert.ok(audit.every(e => e.data.nativeImage && e.data.completed))
   console.log(JSON.stringify({ status: 'PASS', tools: calls.map(c => c.data.name), durableImages: images }))

@@ -29,7 +29,7 @@ export declare class CodexAppServerAdapter extends LlmAdapter {
     private collectToolCalls;
     stream(options: GenerateOptions): AsyncIterable<StreamChunk>;
 }
-export declare function apply(ctx: Context): void;
+export declare function apply(ctx: Context): Promise<void>;
 declare const _default: {
     name: string;
     inject: string[];

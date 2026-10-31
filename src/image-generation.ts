@@ -2,6 +2,7 @@ import { open, realpath } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import { isAbsolute, join, relative, sep } from 'node:path'
 import { codexHome } from './paths.js'
+import { recordUsage } from './session-records.js'
 import type { AttachmentStore, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import { LlmError } from '@deepseek-ai/dsh-llm'
@@ -135,7 +136,6 @@ export class CodexImageGenerator {
 interface ImageSession {
   deriveMessages(): Message[]
   requestContext(): { provider?: string; model?: string } | undefined
-  append(type: string, data: Record<string, unknown>): unknown
 }
 interface ImageTool {
   name: string; description: string; parameters: Record<string, unknown>; timeoutMs: number
@@ -167,7 +167,7 @@ export function applyImageTools(ctx: Context, server: AppServer): void {
         if (!session) throw new LlmError('Image tools require a Harness conversation', 'INVALID_REQUEST')
         const route = session.requestContext()
         return generator.run(mode, args, session.deriveMessages(), route?.provider === 'openai-codex' ? route.model : undefined,
-          exec.signal, event => { session.append('image/codex-llm-request', event) })
+          exec.signal, event => { recordUsage(session, 'image', event) })
       },
     })
   }

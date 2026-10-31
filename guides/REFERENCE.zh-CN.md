@@ -2,7 +2,7 @@
 
 [← 返回项目概览](../README.zh-CN.md)
 
-v0.5.0 的模型选择、会话恢复、用量统计、工具边界与开发检查。
+v0.5.1 的模型选择、会话恢复、用量统计、工具边界与开发检查。
 
 ## 选择模型
 
@@ -81,9 +81,9 @@ Harness 当前历史是唯一事实来源。重启/HMR 后，适配器核对历�
     fetchTimeoutMs: 120000
 ```
 
-注册本身不切换现有提供方。内置 DeepSeek 搜索设置开关仍选择 DeepSeek 后端，可能覆盖此选择。搜索使用 ChatGPT 配额，用量记录在 `web/codex-search-llm-request` 事件中；未实际执行原生搜索的响应会被拒绝。取消操作中断并释放临时线程，普通对话、标题和压缩线程仍禁用原生搜索。
+注册本身不切换现有提供方。内置 DeepSeek 搜索设置开关仍选择 DeepSeek 后端，可能覆盖此选择。搜索使用 ChatGPT 配额，用量记录在 `plugin:dsh-openai-oauth/search-llm-request` 事件中；未实际执行原生搜索的响应会被拒绝。取消操作中断并释放临时线程，普通对话、标题和压缩线程仍禁用原生搜索。
 
-提供方还通过 Codex 原生 `openPage` 支持 `web_fetch`，返回模型提取的文字而非原始 HTML，不保证完整或逐字一致。app-server 不提供 HTTP 状态码，`0` 明确表示未知。未经确认打开请求 URL 并获得可读结果的响应会被拒绝。用量记录为 `web/codex-fetch-llm-request`。如需普通 HTTP 传输，可使用 `fetchProvider: http`。
+提供方还通过 Codex 原生 `openPage` 支持 `web_fetch`，返回模型提取的文字而非原始 HTML，不保证完整或逐字一致。app-server 不提供 HTTP 状态码，`0` 明确表示未知。未经确认打开请求 URL 并获得可读结果的响应会被拒绝。用量记录为 `plugin:dsh-openai-oauth/fetch-llm-request`。如需普通 HTTP 传输，可使用 `fetchProvider: http`。
 
 ## 图片
 
@@ -95,7 +95,7 @@ Harness 当前历史是唯一事实来源。重启/HMR 后，适配器核对历�
 
 `image_generate` 使用当前 ChatGPT 登录调用 Codex 原生图片生成；`image_edit` 接收提示词和当前会话中 1–4 个有效附件的 `image_ids`。本地图片先通过 `read_image` 导入。输入以原生图片直接传入独立调用，通过 `num_last_images_to_include` 编辑，无需访问本地路径，原附件不被覆盖。结果作为新的 PNG 附件持久保存。
 
-可选参数 `transparent_background` 控制透明背景；编辑未指定时要求保留原透明度。调用运行于独立临时线程，禁用 shell、网页和动态工具，取消时中断，超时为五分钟，且不创建临时输入文件。能力通过 `modelProvider/capabilities/read` 检查，用量记录为 `image/codex-llm-request`。仅返回文件标识而无内联图片字节的响应会明确失败。
+可选参数 `transparent_background` 控制透明背景；编辑未指定时要求保留原透明度。调用运行于独立临时线程，禁用 shell、网页和动态工具，取消时中断，超时为五分钟，且不创建临时输入文件。能力通过 `modelProvider/capabilities/read` 检查，用量记录为 `plugin:dsh-openai-oauth/image-llm-request`。仅返回文件标识而无内联图片字节的响应会明确失败。
 
 工具还会返回已验证的 `path`：文件必须位于 Codex 图片输出目录且字节与本次结果一致。模型应在同一轮最终回复中使用 `![描述](<path>)`，并在 `present` 可用时附上文件卡片。`attachmentId` 仅用于后续编辑，不是文件路径；无需搜索私有目录、计算哈希寻找文件、重新生成或加载单独的 `imagegen` 技能。
 

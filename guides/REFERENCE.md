@@ -2,7 +2,7 @@
 
 [← Back to the overview](../README.md)
 
-Model selection, session recovery, accounting, tool boundaries, and development checks for v0.5.0.
+Model selection, session recovery, accounting, tool boundaries, and development checks for v0.5.1.
 
 ## Select a model
 
@@ -88,11 +88,11 @@ Select the provider explicitly in your profile patch:
     fetchTimeoutMs: 120000
 ```
 
-Registration alone does not change the existing search provider. The bundled DeepSeek search settings switch still selects DeepSeek backends; changing it can replace the selection above. Searches consume ChatGPT quota and record model/token usage in `web/codex-search-llm-request` session events. Responses without an observed native search fail explicitly. Titles and snippets are generated from search results; URLs are normalized and deduplicated, with no invented publication dates. Cancellation interrupts and releases the auxiliary thread. Ordinary conversation, title and compaction threads keep native search disabled.
+Registration alone does not change the existing search provider. The bundled DeepSeek search settings switch still selects DeepSeek backends; changing it can replace the selection above. Searches consume ChatGPT quota and record model/token usage in `plugin:dsh-openai-oauth/search-llm-request` session events. Responses without an observed native search fail explicitly. Titles and snippets are generated from search results; URLs are normalized and deduplicated, with no invented publication dates. Cancellation interrupts and releases the auxiliary thread. Ordinary conversation, title and compaction threads keep native search disabled.
 
 Opt-in live checks: `node scripts/web-search-smoke.mjs` and `DSH_CLI=/path/to/dsh/lib/bin.js node scripts/harness-web-search-smoke.mjs`.
 
-The provider also supports `web_fetch` through native Codex `openPage`. It returns model-extracted text, not raw HTML; completeness and verbatim fidelity are not guaranteed. App-server does not expose HTTP status: `0` explicitly means unknown and is explained in the result. Responses without a confirmed open of the requested URL and readable native results are rejected. Usage is recorded in `web/codex-fetch-llm-request`. Keep `fetchProvider: http` for ordinary HTTP transport. Live check: `DSH_CLI=/path/to/dsh/lib/bin.js node scripts/harness-web-fetch-smoke.mjs`.
+The provider also supports `web_fetch` through native Codex `openPage`. It returns model-extracted text, not raw HTML; completeness and verbatim fidelity are not guaranteed. App-server does not expose HTTP status: `0` explicitly means unknown and is explained in the result. Responses without a confirmed open of the requested URL and readable native results are rejected. Usage is recorded in `plugin:dsh-openai-oauth/fetch-llm-request`. Keep `fetchProvider: http` for ordinary HTTP transport. Live check: `DSH_CLI=/path/to/dsh/lib/bin.js node scripts/harness-web-fetch-smoke.mjs`.
 
 ## Images
 
@@ -106,7 +106,7 @@ Opt-in live check: `DSH_CLI=/path/to/dsh/lib/bin.js node scripts/harness-images-
 
 Both tools return a new durable PNG image attachment. Optional `transparent_background` requests transparency; edits otherwise instruct the model to preserve existing transparency. Generation runs in an isolated ephemeral thread without shell, web or dynamic tools. No temporary input files are created. Cancellation interrupts the thread, and calls have a five-minute timeout. Native image generation stays disabled in ordinary conversation threads.
 
-Availability is checked with `modelProvider/capabilities/read`. Generation consumes ChatGPT quota; observed token usage is recorded in `image/codex-llm-request`, not treated as an image-quota counter. The pinned CLI returns PNG bytes in `result`; file-only responses without inline bytes fail explicitly.
+Availability is checked with `modelProvider/capabilities/read`. Generation consumes ChatGPT quota; observed token usage is recorded in `plugin:dsh-openai-oauth/image-llm-request`, not treated as an image-quota counter. The pinned CLI returns PNG bytes in `result`; file-only responses without inline bytes fail explicitly.
 
 Full generation/edit live check: `DSH_CLI=/path/to/dsh/lib/bin.js node scripts/harness-image-generation-smoke.mjs`.
 

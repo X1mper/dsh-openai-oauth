@@ -18,6 +18,7 @@ import type {
   TokenUsage,
 } from '@deepseek-ai/dsh-llm'
 import { AppServer, type ServerEvent } from './app-server.js'
+import { recordUsage, initializeSessionRecords } from './session-records.js'
 import { oauthRoute } from './oauth-http.js'
 import { CodexUsageTracker } from './usage.js'
 import { CodexWebSearchProvider } from './web-search.js'
@@ -654,7 +655,8 @@ export class CodexAppServerAdapter extends LlmAdapter {
   }
 }
 
-export function apply(ctx: Context): void {
+export async function apply(ctx: Context): Promise<void> {
+  await initializeSessionRecords()
   const server = new AppServer()
   // Session metadata belongs to Harness, not the Codex process or message text.
   const sessions = (ctx as Context & {
@@ -668,17 +670,16 @@ export function apply(ctx: Context): void {
       web: { registerSearchProvider(provider: CodexWebSearchProvider): () => void; registerFetchProvider(provider: CodexWebFetchProvider): () => void }
       get(name: string): { currentInitiator?(): { session: {
         requestContext(): { provider?: string; model?: string } | undefined
-        append(type: string, data: Record<string, unknown>): unknown
       } } | undefined } | undefined
     }
     const current = () => services.get('agents')?.currentInitiator?.()?.session
     webCtx.effect(() => services.web.registerSearchProvider(new CodexWebSearchProvider(server,
       () => { const route = current()?.requestContext(); return route?.provider === PROVIDER ? route.model : undefined },
-      event => { current()?.append('web/codex-search-llm-request', event) },
+      event => { recordUsage(current(), 'search', event) },
     )), 'llm-codex-app-server.web-search')
     webCtx.effect(() => services.web.registerFetchProvider(new CodexWebFetchProvider(server,
       () => { const route = current()?.requestContext(); return route?.provider === PROVIDER ? route.model : undefined },
-      event => { current()?.append('web/codex-fetch-llm-request', event) },
+      event => { recordUsage(current(), 'fetch', event) },
     )), 'llm-codex-app-server.web-fetch')
   })
   ctx.inject(['webServer'], (webCtx) => {
