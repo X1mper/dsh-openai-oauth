@@ -7,15 +7,19 @@
 **用你的 ChatGPT 账户，写代码、查资料、做创作。**<br>
 对话、工具和权限仍由 Harness 管理。
 
-[![Release](https://img.shields.io/badge/release-v0.5.1-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.5.1) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v0.6.0-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.0) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
 
 [English](README.md) · [Русский](README.ru.md) · **简体中文**
 
-[快速开始](#start) · [网页与图片](#tools) · [技术参考](guides/REFERENCE.zh-CN.md) · [发行说明](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.5.1)
+[快速开始](#start) · [网页与图片](#tools) · [技术参考](guides/REFERENCE.zh-CN.md) · [发行说明](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.0)
 
-**0.5.1 修复图片和网页调用后的历史加载问题。** 已受影响的旧会话请参阅[历史修复指南](guides/SESSION-REPAIR.md)。
+**0.6.0：原生 Harness 上下文处理、七个独立组件与空闲压缩设置。** 请参阅[集成指南](guides/NATIVE-PROVIDER.md)。
 
 </div>
+
+[原生提供程序、独立组件与空闲压缩](guides/NATIVE-PROVIDER.md)。
+
+**从 0.5.x 升级后请重启 Harness**，让旧版整体插件释放注册项，再启用独立组件。
 
 ---
 
@@ -39,10 +43,10 @@
 ### 1 · 安装
 
 ```sh
-dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.5.1
+dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.0
 ```
 
-安装后重启 Harness。需要压缩包？[发行页面](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.5.1)提供已编译的 `.tgz`。
+安装后重启 Harness。需要压缩包？[发行页面](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.0)提供已编译的 `.tgz`。
 
 <details>
 <summary>没有 <code>dsh</code> 命令，或使用 headless？</summary>
@@ -50,7 +54,7 @@ dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.5.1
 使用你已安装的 Harness 启动器。例如：
 
 ```sh
-npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.5.1
+npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.0
 ```
 
 无界面使用时将 `web` 替换为 `headless`。各 profile 独立安装依赖。如果安装器未自动注册 bundle，请将 `dsh-openai-oauth` 加入该 profile 现有的 `dsh.profile.bundles` 列表。
@@ -61,7 +65,7 @@ npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.
 
 ### 2 · 使用 ChatGPT 登录
 
-打开 **Settings → OpenAI OAuth → Sign in with ChatGPT**，在 OpenAI 页面完成授权。
+打开 **Settings → OpenAI · Codex → Sign in with ChatGPT**，在 OpenAI 页面完成授权。
 
 ### 3 · 选择模型
 
@@ -134,7 +138,7 @@ Harness 对话与工具
    ChatGPT 账户
 ```
 
-**v0.5.1** 通过了 107 项自动测试。真实调用验证覆盖会话恢复、原生网页工具、截图、图片生成与编辑，以及在最终回复中展示图片。
+**v0.6.0** 通过 135 项自动测试，以及已安装 Harness 的压缩和组件生命周期检查。真实 Codex 测试验证大段历史摘要和后续对话。
 
 [配置、权限与恢复](guides/REFERENCE.zh-CN.md) · [开发与检查](guides/REFERENCE.zh-CN.md#本地开发) · [卸载](guides/REFERENCE.zh-CN.md#卸载)
 

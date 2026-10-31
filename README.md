@@ -7,15 +7,19 @@
 **Code, search, and create with your ChatGPT account.**<br>
 Your conversations, tools, and permissions stay in Harness.
 
-[![Release](https://img.shields.io/badge/release-v0.5.1-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.5.1) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v0.6.0-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.0) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
 
 **English** · [Русский](README.ru.md) · [简体中文](README.zh-CN.md)
 
-[Quick start](#start) · [Web & images](#tools) · [Technical guide](guides/REFERENCE.md) · [Release notes](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.5.1)
+[Quick start](#start) · [Web & images](#tools) · [Technical guide](guides/REFERENCE.md) · [Release notes](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.0)
 
-**0.5.1 fixes history loading after image and web calls.** For affected older conversations, see [history repair](guides/SESSION-REPAIR.md).
+**0.6.0 brings native Harness context handling, seven independent components, and idle compaction settings.** See the [integration guide](guides/NATIVE-PROVIDER.md).
 
 </div>
+
+[Native provider, independent components and idle compaction](guides/NATIVE-PROVIDER.md).
+
+**Restart Harness after upgrading from 0.5.x** so the old monolithic plugin releases its registrations before the new components start.
 
 ---
 
@@ -39,10 +43,10 @@ Your conversations, tools, and permissions stay in Harness.
 ### 1 · Install
 
 ```sh
-dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.5.1
+dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.0
 ```
 
-Restart Harness after installation. Prefer an archive? Grab the compiled `.tgz` from the [release page](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.5.1).
+Restart Harness after installation. Prefer an archive? Grab the compiled `.tgz` from the [release page](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.0).
 
 <details>
 <summary>No <code>dsh</code> command, or using headless?</summary>
@@ -50,7 +54,7 @@ Restart Harness after installation. Prefer an archive? Grab the compiled `.tgz` 
 Use your installed Harness launcher. For example:
 
 ```sh
-npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.5.1
+npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.0
 ```
 
 Replace `web` with `headless` for that profile. Profiles install their dependencies separately. If your installer does not register the bundle, add `dsh-openai-oauth` to the profile's existing `dsh.profile.bundles` list.
@@ -61,7 +65,7 @@ The upstream `npx dsh-openai-oauth install` command installs the upstream npm pa
 
 ### 2 · Sign in
 
-Open **Settings → OpenAI OAuth → Sign in with ChatGPT** and finish authorization on the OpenAI page.
+Open **Settings → OpenAI · Codex → Sign in with ChatGPT** and finish authorization on the OpenAI page.
 
 ### 3 · Pick a model
 
@@ -134,7 +138,7 @@ Harness conversation & tools
      ChatGPT account
 ```
 
-107 automated tests passed for **v0.5.1**. Live checks covered conversation recovery, native web tools, screenshots, image generation/editing, and delivery in the final answer.
+107 automated tests passed for **v0.6.0**. Live checks covered conversation recovery, native web tools, screenshots, image generation/editing, and delivery in the final answer.
 
 [Configuration, permissions & recovery](guides/REFERENCE.md) · [Development & checks](guides/REFERENCE.md#development) · [Uninstall](guides/REFERENCE.md#uninstall)
 

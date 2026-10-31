@@ -1,5 +1,7 @@
 # Configuration and technical reference
 
+> This reference describes released 0.5.1. For the 0.6.0 component architecture and native compaction behavior, see [Native provider integration](NATIVE-PROVIDER.md). In 0.6.0, oversized normal requests delegate to Harness compaction; internal fragment summaries apply only to auxiliary requests.
+
 [← Back to the overview](../README.md)
 
 Model selection, session recovery, accounting, tool boundaries, and development checks for v0.5.1.
