@@ -230,8 +230,36 @@ test('large auxiliary compaction uses isolated bounded summaries and includes us
 
 test('oversized normal history delegates compaction to Harness before any model request', async () => {
   const server = new TextServer(), adapter = new CodexAppServerAdapter(server)
-  await assert.rejects(run(adapter, {messages:[user('x'.repeat(250000))]}), error => error.code === 'CONTEXT_WINDOW_EXCEEDED')
+  await assert.rejects(run(adapter, {messages:[user('x'.repeat(1_000_001))]}), error => error.code === 'CONTEXT_WINDOW_EXCEEDED')
   assert.equal(server.turns.length, 0)
+})
+
+test('cancelled long conversation rebuilds exact canonical history without auxiliary compaction', async () => {
+  const server = new TextServer(), adapter = new CodexAppServerAdapter(server)
+  const interrupted = [], released = []
+  server.interrupt = async id => { interrupted.push(id); server.events = [] }
+  server.releaseThread = async id => { released.push(id) }
+  const controller = new AbortController()
+  const messages = [user('original requirement: ' + 'я😀'.repeat(90_000), 'long'), assistant('previous decision'), user('continue')]
+  const next = server.nextEvent.bind(server)
+  server.nextEvent = async (...args) => {
+    controller.abort(new Error('user stopped'))
+    args[1].throwIfAborted()
+  }
+  await assert.rejects(run(adapter, { messages, signal: controller.signal }), /user stopped/)
+  server.nextEvent = next
+  const canonical = [...messages, assistant('partial answer actually displayed'), user('try again')]
+  const chunks = await run(adapter, { messages: canonical })
+  assert.deepEqual(interrupted, ['thread-1'])
+  assert.deepEqual(released, ['thread-1'])
+  assert.equal(server.threads.length, 2)
+  assert.equal(server.turns.length, 2)
+  assert.ok(server.threads.every(thread => !thread.ephemeral))
+  const input = server.turns[1].input[0].text
+  assert.ok(input.includes(messages[0].content[0].text))
+  assert.match(input, /partial answer actually displayed/)
+  assert.match(input, /try again/)
+  assert.equal(chunks.at(-1).reason.kind, 'stop')
 })
 
 test('startTurn RPC rejection invalidates session before a full canonical retry', async () => {

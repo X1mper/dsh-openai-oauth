@@ -71,7 +71,7 @@ assert.equal(await engine.compactIfNeeded(pa,'pressure',signal),null)
 assert.equal(server.turns.length,callsAfter)
 
 const transport=fixture()
-for(let i=0;i<10;i++)transport.append('user/message',{role:'user',id:crypto.randomUUID(),source:{kind:'user'},content:[{type:'text',text:'older content '.repeat(2500)}]},{surfaceOp:'append'})
+for(let i=0;i<40;i++)transport.append('user/message',{role:'user',id:crypto.randomUUID(),source:{kind:'user'},content:[{type:'text',text:'older content '.repeat(2500)}]},{surfaceOp:'append'})
 transport.append('turn/start',{turn:1})
 const normal=()=>Array.fromAsync(adapter.stream({provider:'openai-codex',model:'fixture',sessionId:'transport',messages:transport.deriveMessages(),tools:[]}))
 await assert.rejects(normal(), error=>error.code==='CONTEXT_WINDOW_EXCEEDED')

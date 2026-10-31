@@ -1,3 +1,4 @@
+export declare const TRANSPORT_INPUT_BUDGET = 1000000;
 export declare const INPUT_BUDGET = 200000;
 export declare const HISTORY_CHUNK = 120000;
 export declare const VERBATIM_TAIL = 60000;

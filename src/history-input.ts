@@ -1,7 +1,11 @@
 import { LlmError } from '@deepseek-ai/dsh-llm'
 
-// Codex validates the SUM of text inputs, not each array element. Keep well
-// below its 1,048,576-character transport ceiling and leave model context room.
+// Codex validates the SUM of text inputs, not each array element. Leave
+// headroom below its 1,048,576-character transport ceiling. Actual context
+// pressure is handled by Harness and provider CONTEXT_WINDOW_EXCEEDED errors.
+export const TRANSPORT_INPUT_BUDGET = 1_000_000
+
+// Separate work budget for auxiliary summaries; never use as a normal-input cap.
 export const INPUT_BUDGET = 200_000
 export const HISTORY_CHUNK = 120_000
 export const VERBATIM_TAIL = 60_000
