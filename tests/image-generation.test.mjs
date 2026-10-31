@@ -89,3 +89,33 @@ test('requested transparency must be confirmed by native generation metadata', a
   const result = await generator.run('generate', { prompt: 'circle', transparent_background: true }, [])
   assert.equal(result.mode, 'generate')
 })
+
+test('delivery path must stay inside generated images and match exact output bytes', async () => {
+  const { mkdtemp, mkdir, writeFile, symlink, rm } = await import('node:fs/promises')
+  const { tmpdir } = await import('node:os')
+  const { join } = await import('node:path')
+  const { verifiedImagePath } = await import('../lib/image-generation.js')
+  const root = await mkdtemp(join(tmpdir(), 'image-delivery-'))
+  try {
+    const generated = join(root, 'generated'), good = join(generated, 'output.png'), outside = join(root, 'other.png')
+    await mkdir(generated); await writeFile(good, bytes); await writeFile(outside, bytes)
+    assert.equal(await verifiedImagePath(good, bytes, undefined, generated), good)
+    assert.equal(await verifiedImagePath(outside, bytes, undefined, generated), undefined)
+    await symlink(outside, join(generated, 'escape.png'))
+    assert.equal(await verifiedImagePath(join(generated, 'escape.png'), bytes, undefined, generated), undefined)
+    assert.equal(await verifiedImagePath(good, Buffer.alloc(bytes.length), undefined, generated), undefined)
+    assert.equal(await verifiedImagePath('relative.png', bytes, undefined, generated), undefined)
+    await assert.rejects(verifiedImagePath(good, bytes, AbortSignal.abort(), generated), { name: 'AbortError' })
+  } finally { await rm(root, { recursive: true, force: true }) }
+})
+
+test('image result gives exact delivery instructions without confusing attachment ID and path', () => {
+  const registered = [], { server, store } = setup()
+  applyImageTools({ attachments: store, tools: { register(tool) { registered.push(tool) } } }, server)
+  const content = registered[0].output.render({}, { image: ref, mode: 'generate', generationId: null, path: '/images/my image.png' })
+  assert.match(content[0].text, /!\[Generated image\]\(<\/images\/my image.png>\)/)
+  assert.match(content[0].text, /present/)
+  assert.match(content[0].text, /for image_edit only/)
+  const missing = registered[0].output.render({}, { image: ref, mode: 'generate', generationId: null })
+  assert.match(missing[0].text, /No verified local presentation path/)
+})

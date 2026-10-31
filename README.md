@@ -190,3 +190,5 @@ Both tools return a new durable PNG image attachment. Optional `transparent_back
 Availability is checked with `modelProvider/capabilities/read`. Generation consumes ChatGPT quota; observed token usage is recorded in `image/codex-llm-request`, not treated as an image-quota counter. The pinned CLI returns PNG bytes in `result`; file-only responses without inline bytes fail explicitly.
 
 Full generation/edit live check: `DSH_CLI=/path/to/dsh/lib/bin.js node scripts/harness-image-generation-smoke.mjs`.
+
+Tools also return `path` when the native output is inside the Codex generated-image directory and its file bytes match this generation. Use that exact path in `![description](<path>)` in the same final response, and call `present` when available for a downloadable card. Keep `attachmentId` for later edits; it is not a path. No private-directory searches, hash hunting, regeneration for display, or separate `imagegen` skill are needed. Delivery smoke check: `DSH_CLI=/path/to/dsh/lib/bin.js node scripts/harness-image-delivery-smoke.mjs`.

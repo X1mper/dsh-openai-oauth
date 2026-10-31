@@ -177,3 +177,5 @@ Harness 当前历史是唯一事实来源。重启/HMR 后，适配器核对历�
 `image_generate` 使用当前 ChatGPT 登录调用 Codex 原生图片生成；`image_edit` 接收提示词和当前会话中 1–4 个有效附件的 `image_ids`。本地图片先通过 `read_image` 导入。输入以原生图片直接传入独立调用，通过 `num_last_images_to_include` 编辑，无需访问本地路径，原附件不被覆盖。结果作为新的 PNG 附件持久保存。
 
 可选参数 `transparent_background` 控制透明背景；编辑未指定时要求保留原透明度。调用运行于独立临时线程，禁用 shell、网页和动态工具，取消时中断，超时为五分钟，且不创建临时输入文件。能力通过 `modelProvider/capabilities/read` 检查，用量记录为 `image/codex-llm-request`。仅返回文件标识而无内联图片字节的响应会明确失败。
+
+工具还会返回已验证的 `path`：文件必须位于 Codex 图片输出目录且字节与本次结果一致。模型应在同一轮最终回复中使用 `![描述](<path>)`，并在 `present` 可用时附上文件卡片。`attachmentId` 仅用于后续编辑，不是文件路径；无需搜索私有目录、计算哈希寻找文件、重新生成或加载单独的 `imagegen` 技能。
