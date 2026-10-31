@@ -180,3 +180,13 @@ User attachments and MCP tool images are passed to Codex as native images throug
 Opt-in live check: `DSH_CLI=/path/to/dsh/lib/bin.js node scripts/harness-images-smoke.mjs /absolute/screenshot.png "visible text"`. This checks the full MCP → Harness attachment → Codex vision path.
 
 The provider also supports `web_fetch` through native Codex `openPage`. It returns model-extracted text, not raw HTML; completeness and verbatim fidelity are not guaranteed. App-server does not expose HTTP status: `0` explicitly means unknown and is explained in the result. Responses without a confirmed open of the requested URL and readable native results are rejected. Usage is recorded in `web/codex-fetch-llm-request`. Keep `fetchProvider: http` for ordinary HTTP transport. Live check: `DSH_CLI=/path/to/dsh/lib/bin.js node scripts/harness-web-fetch-smoke.mjs`.
+
+### Image generation and editing (preparing 0.5)
+
+`image_generate` creates one image with native Codex image generation using the existing ChatGPT login. `image_edit` accepts a prompt and 1–4 `image_ids` from active image attachments in the current conversation. Use Harness `read_image` first for local files. Inputs are sent as native images directly in the isolated turn; the generator edits them with `num_last_images_to_include` without local path access. Original attachments remain unchanged.
+
+Both tools return a new durable PNG image attachment. Optional `transparent_background` requests transparency; edits otherwise instruct the model to preserve existing transparency. Generation runs in an isolated ephemeral thread without shell, web or dynamic tools. No temporary input files are created. Cancellation interrupts the thread, and calls have a five-minute timeout. Native image generation stays disabled in ordinary conversation threads.
+
+Availability is checked with `modelProvider/capabilities/read`. Generation consumes ChatGPT quota; observed token usage is recorded in `image/codex-llm-request`, not treated as an image-quota counter. The pinned CLI returns PNG bytes in `result`; file-only responses without inline bytes fail explicitly.
+
+Full generation/edit live check: `DSH_CLI=/path/to/dsh/lib/bin.js node scripts/harness-image-generation-smoke.mjs`.

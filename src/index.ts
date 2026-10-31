@@ -22,12 +22,13 @@ import { oauthRoute } from './oauth-http.js'
 import { CodexUsageTracker } from './usage.js'
 import { CodexWebSearchProvider } from './web-search.js'
 import { CodexWebFetchProvider } from './web-fetch.js'
+import { applyImageTools } from './image-generation.js'
 import { codexToolSchema } from './tool-schema.js'
 import { ImageBridge, type ImageStore } from './images.js'
 import { recoverySteps, SUMMARY_BUDGET } from './history-input.js'
 
 export const name = 'llm-codex-app-server'
-export const inject = ['llm', 'sessions', 'attachments']
+export const inject = ['llm', 'sessions', 'attachments', 'tools']
 const PROVIDER = 'openai-codex'
 const REPLAY_KIND = 'codex-app-server'
 
@@ -660,6 +661,7 @@ export function apply(ctx: Context): void {
   }).sessions
   ctx.llm.registerAdapter([PROVIDER], new CodexAppServerAdapter(server, id => sessions.get(id)?.header.cwd, ctx.attachments))
   ctx.effect(() => () => server.close(), 'llm-codex-app-server.close')
+  applyImageTools(ctx, server)
   ctx.inject(['web'], (webCtx) => {
     const services = webCtx as unknown as {
       web: { registerSearchProvider(provider: CodexWebSearchProvider): () => void; registerFetchProvider(provider: CodexWebFetchProvider): () => void }

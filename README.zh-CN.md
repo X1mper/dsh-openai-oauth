@@ -171,3 +171,9 @@ Harness 当前历史是唯一事实来源。重启/HMR 后，适配器核对历�
 实时验证：`DSH_CLI=/path/to/dsh/lib/bin.js node scripts/harness-images-smoke.mjs /absolute/screenshot.png "visible text"`。
 
 提供方还通过 Codex 原生 `openPage` 支持 `web_fetch`，返回模型提取的文字而非原始 HTML，不保证完整或逐字一致。app-server 不提供 HTTP 状态码，`0` 明确表示未知。未经确认打开请求 URL 并获得可读结果的响应会被拒绝。用量记录为 `web/codex-fetch-llm-request`。如需普通 HTTP 传输，可使用 `fetchProvider: http`。
+
+### 图片生成与编辑（准备 0.5）
+
+`image_generate` 使用当前 ChatGPT 登录调用 Codex 原生图片生成；`image_edit` 接收提示词和当前会话中 1–4 个有效附件的 `image_ids`。本地图片先通过 `read_image` 导入。输入以原生图片直接传入独立调用，通过 `num_last_images_to_include` 编辑，无需访问本地路径，原附件不被覆盖。结果作为新的 PNG 附件持久保存。
+
+可选参数 `transparent_background` 控制透明背景；编辑未指定时要求保留原透明度。调用运行于独立临时线程，禁用 shell、网页和动态工具，取消时中断，超时为五分钟，且不创建临时输入文件。能力通过 `modelProvider/capabilities/read` 检查，用量记录为 `image/codex-llm-request`。仅返回文件标识而无内联图片字节的响应会明确失败。
