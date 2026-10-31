@@ -20,6 +20,7 @@ import type {
 import { AppServer, type ServerEvent } from './app-server.js'
 import { oauthRoute } from './oauth-http.js'
 import { CodexUsageTracker } from './usage.js'
+import { CodexWebSearchProvider } from './web-search.js'
 import { codexToolSchema } from './tool-schema.js'
 import { ImageBridge, type ImageStore } from './images.js'
 import { recoverySteps, SUMMARY_BUDGET } from './history-input.js'
@@ -658,6 +659,20 @@ export function apply(ctx: Context): void {
   }).sessions
   ctx.llm.registerAdapter([PROVIDER], new CodexAppServerAdapter(server, id => sessions.get(id)?.header.cwd, ctx.attachments))
   ctx.effect(() => () => server.close(), 'llm-codex-app-server.close')
+  ctx.inject(['web'], (webCtx) => {
+    const services = webCtx as unknown as {
+      web: { registerSearchProvider(provider: CodexWebSearchProvider): () => void }
+      get(name: string): { currentInitiator?(): { session: {
+        requestContext(): { provider?: string; model?: string } | undefined
+        append(type: string, data: Record<string, unknown>): unknown
+      } } | undefined } | undefined
+    }
+    const current = () => services.get('agents')?.currentInitiator?.()?.session
+    webCtx.effect(() => services.web.registerSearchProvider(new CodexWebSearchProvider(server,
+      () => { const route = current()?.requestContext(); return route?.provider === PROVIDER ? route.model : undefined },
+      event => { current()?.append('web/codex-search-llm-request', event) },
+    )), 'llm-codex-app-server.web-search')
+  })
   ctx.inject(['webServer'], (webCtx) => {
     webCtx.effect(() => webCtx.webServer.register(oauthRoute(server)), 'llm-codex-app-server.oauth-route')
   })
