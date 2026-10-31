@@ -1,3 +1,4 @@
+import { isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import {
@@ -18,7 +19,7 @@ import { AppServer, type ServerEvent } from './app-server.js'
 import { oauthRoute } from './oauth-http.js'
 
 export const name = 'llm-codex-app-server'
-export const inject = ['llm']
+export const inject = ['llm', 'sessions']
 const PROVIDER = 'openai-codex'
 const REPLAY_KIND = 'codex-app-server'
 
@@ -101,7 +102,7 @@ export class CodexAppServerAdapter extends LlmAdapter {
   private readonly sessions = new Map<string, Session>()
   private modelsCache?: Record<string, unknown>[]
 
-  constructor(server = new AppServer()) {
+  constructor(server = new AppServer(), private readonly sessionCwd?: (sessionId: string) => string | undefined) {
     super()
     this.server = server
   }
@@ -160,6 +161,8 @@ export class CodexAppServerAdapter extends LlmAdapter {
   }
 
   private async createSession(options: GenerateOptions): Promise<Session> {
+    const cwd = options.sessionId === undefined ? process.cwd() : this.sessionCwd?.(String(options.sessionId)) ?? process.cwd()
+    if (!isAbsolute(cwd)) throw new LlmError('Harness session working directory must be absolute', 'INVALID_REQUEST')
     const tools = JSON.stringify(toolSpec(options))
     const system = [
       options.system ?? '',
@@ -177,7 +180,7 @@ export class CodexAppServerAdapter extends LlmAdapter {
     ].join('\n')
     const threadId = await this.server.startThread({
       model: options.model,
-      cwd: process.cwd(),
+      cwd,
       // All workspace access belongs to Harness. An empty environment list
       // removes native environment tools (including apply_patch) from Codex.
       environments: [],
@@ -367,7 +370,11 @@ export class CodexAppServerAdapter extends LlmAdapter {
 
 export function apply(ctx: Context): void {
   const server = new AppServer()
-  ctx.llm.registerAdapter([PROVIDER], new CodexAppServerAdapter(server))
+  // Session metadata belongs to Harness, not the Codex process or message text.
+  const sessions = (ctx as Context & {
+    sessions: { get(id: string): { header: { cwd?: string } } | undefined }
+  }).sessions
+  ctx.llm.registerAdapter([PROVIDER], new CodexAppServerAdapter(server, id => sessions.get(id)?.header.cwd))
   ctx.effect(() => () => server.close(), 'llm-codex-app-server.close')
   ctx.inject(['webServer'], (webCtx) => {
     webCtx.effect(() => webCtx.webServer.register(oauthRoute(server)), 'llm-codex-app-server.oauth-route')

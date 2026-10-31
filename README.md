@@ -4,7 +4,7 @@
 >
 > Install this fork with `dsh plugin --profile web add github:X1mper/dsh-openai-oauth` (or the equivalent command through the installed DSH launcher), then register its bundle in the profile if your launcher does not do so automatically. The upstream npm/global-installer commands below still refer to the upstream release, not this fork. GitHub publication does not automatically add it to a plugin-market index.
 >
-> Verified: build and 13 tests passed. Real Harness 0.2 permission smoke checks passed for an allowed edit/read-back and a denied read-only edit, using an isolated workspace. No auth credentials are included in this repository.
+> Verified: build and 15 tests passed. Real Harness 0.2 permission smoke checks passed for an allowed edit/read-back and a denied read-only edit, using an isolated workspace. Session working directories are resolved from Harness session metadata, independently for each session; standalone calls and sessions without directory metadata retain the process-directory fallback. No auth credentials are included in this repository.
 
 
 English | [简体中文](README.zh-CN.md)

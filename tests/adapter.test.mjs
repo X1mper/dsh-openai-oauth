@@ -135,3 +135,26 @@ for (const denied of [false, true]) {
     assert.equal(server.responses[0].result.contentItems[0].text, denied ? 'Denied by Harness' : 'Saved by Harness')
   })
 }
+
+
+test('uses each Harness session directory instead of the plugin process directory', async () => {
+  const directories = new Map([['session-1', '/tmp/harness-workspace-one'], ['session-2', '/tmp/harness-workspace-two']])
+  const server = new FakeServer()
+  const adapter = new CodexAppServerAdapter(server, id => directories.get(id))
+  for (const sessionId of directories.keys()) {
+    await Array.fromAsync(adapter.stream({ ...base, sessionId, messages: [
+      { id: 'u1', role: 'user', content: [{ type: 'text', text: 'ping' }] },
+    ] }))
+    assert.equal(server.threadInput.cwd, directories.get(sessionId))
+    assert.notEqual(server.threadInput.cwd, process.cwd())
+    assert.deepEqual(server.threadInput.environments, [])
+    assert.equal(server.threadInput.sandbox, 'read-only')
+  }
+})
+
+test('rejects a relative session directory instead of resolving it against process cwd', async () => {
+  const server = new FakeServer()
+  const adapter = new CodexAppServerAdapter(server, () => 'relative/workspace')
+  await assert.rejects(async () => Array.fromAsync(adapter.stream({ ...base, messages: [] })), /must be absolute/)
+  assert.equal(server.threadInput, undefined)
+})

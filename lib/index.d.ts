@@ -5,10 +5,11 @@ import { AppServer } from './app-server.js';
 export declare const name = "llm-codex-app-server";
 export declare const inject: string[];
 export declare class CodexAppServerAdapter extends LlmAdapter {
+    private readonly sessionCwd?;
     private readonly server;
     private readonly sessions;
     private modelsCache?;
-    constructor(server?: AppServer);
+    constructor(server?: AppServer, sessionCwd?: ((sessionId: string) => string | undefined) | undefined);
     providerInfo(): {
         id: string;
         name: string;
