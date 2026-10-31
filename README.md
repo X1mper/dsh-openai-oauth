@@ -7,7 +7,7 @@
 > Verified: build and 15 tests passed. Real Harness 0.2 permission smoke checks passed for an allowed edit/read-back and a denied read-only edit, using an isolated workspace. Session working directories are resolved from Harness session metadata, independently for each session; standalone calls and sessions without directory metadata retain the process-directory fallback. No auth credentials are included in this repository.
 
 
-English | [简体中文](README.zh-CN.md)
+English | [Русский](README.ru.md) | [简体中文](README.zh-CN.md)
 
 Use GPT models from your ChatGPT account as the main model in DeepSeek Harness. Harness keeps its own agent loop and runs its own tools. This package connects its LLM interface to the official local Codex app-server, which handles ChatGPT login, credential storage, token refresh, and model access.
 

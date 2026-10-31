@@ -1,6 +1,6 @@
 # dsh-openai-oauth
 
-[English](README.md) | 简体中文
+[English](README.md) | [Русский](README.ru.md) | 简体中文
 
 这个插件可以把 ChatGPT 账户中的 GPT 模型接入 DeepSeek Harness，并作为主模型使用。Harness 仍然负责 Agent 循环和工具执行。插件通过 OpenAI 官方的本地 Codex app-server 完成 ChatGPT 登录、凭据保存、token 刷新和模型调用。
 
