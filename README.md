@@ -1,12 +1,5 @@
 # dsh-openai-oauth
 
-> Release **0.4.1** — compatibility fork for Harness 0.2.1-rc.5 with Codex 0.166.0. Original commits from [upstream PR #3](https://github.com/DGPisces/dsh-openai-oauth/pull/3) retain Ruili's authorship; compatibility changes are separate.
->
-> Install this fork with `dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.4.1` (or the equivalent command through the installed DSH launcher), then register its bundle in the profile if your launcher does not do so automatically. The upstream npm/global-installer commands below still refer to the upstream release, not this fork. GitHub publication does not automatically add it to a plugin-market index.
->
-> Verified: build and 15 tests passed. Real Harness 0.2 permission smoke checks passed for an allowed edit/read-back and a denied read-only edit, using an isolated workspace. Session working directories are resolved from Harness session metadata, independently for each session; standalone calls and sessions without directory metadata retain the process-directory fallback. No auth credentials are included in this repository.
-
-
 English | [Русский](README.ru.md) | [简体中文](README.zh-CN.md)
 
 Use GPT models from your ChatGPT account as the main model in DeepSeek Harness. Harness keeps its own agent loop and runs its own tools. This package connects its LLM interface to the official local Codex app-server, which handles ChatGPT login, credential storage, token refresh, and model access.
