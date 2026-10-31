@@ -1,6 +1,6 @@
 {
   "name": "dsh-openai-oauth",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "DeepSeek Harness LLM provider for Codex models using managed ChatGPT OAuth",
   "type": "module",
   "main": "lib/index.js",
@@ -30,7 +30,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DGPisces/dsh-openai-oauth.git"
+    "url": "git+https://github.com/X1mper/dsh-openai-oauth.git"
   },
   "dsh": {
     "bundle": {
