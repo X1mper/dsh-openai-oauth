@@ -1,6 +1,6 @@
 {
   "name": "dsh-openai-oauth",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "Codex integration for DeepSeek Harness: ChatGPT sign-in, web search, image generation and editing, persistent sessions, and usage tracking",
   "type": "module",
   "main": "lib/index.js",
@@ -34,6 +34,14 @@
     "./account": {
       "types": "./lib/component-account.d.ts",
       "default": "./lib/component-account.js"
+    },
+    "./compaction": {
+      "types": "./lib/codex-compaction.d.ts",
+      "default": "./lib/codex-compaction.js"
+    },
+    "./context-indicator": {
+      "types": "./lib/context-indicator.d.ts",
+      "default": "./lib/context-indicator.js"
     },
     "./context": {
       "types": "./lib/context-policy.d.ts",
@@ -84,17 +92,30 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@openai/codex": "0.166.0"
+    "@openai/codex": "0.166.0",
+    "zod": "4.4.3"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.5",
+    "@deepseek-ai/dsh-compaction": ">=0.2.1-rc.5",
+    "@deepseek-ai/dsh-compaction-basic": "0.2.1-rc.5",
     "@deepseek-ai/dsh-host-webserver": ">=0.2.1-rc.5",
     "@deepseek-ai/dsh-llm": ">=0.2.1-rc.5",
     "@deepseek-ai/dsh-session": ">=0.2.1-rc.5",
+    "@deepseek-ai/dsh-session-projection": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-token-meter": "0.2.1-rc.5",
     "@deepseek-ai/schemastery": "^3.18.1",
     "react": "^18.2.0"
   },
   "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-session-projection": { "optional": true },
+    "@deepseek-ai/dsh-token-meter": { "optional": true },
+    "@deepseek-ai/dsh-compaction": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-compaction-basic": {
+      "optional": true
+    },
     "@deepseek-ai/cordis": {
       "optional": true
     },
@@ -123,12 +144,17 @@
     "@deepseek-ai/dsh-client-store": "0.2.1-rc.5",
     "@deepseek-ai/dsh-client-ui-primitives": "0.2.1-rc.5",
     "@deepseek-ai/dsh-client-ui-renderer": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-ui-session": "0.2.1-rc.5",
     "@deepseek-ai/dsh-client-ui-settings": "0.2.1-rc.5",
     "@deepseek-ai/dsh-client-ui-slots": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-compaction": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-compaction-basic": "0.2.1-rc.5",
     "@deepseek-ai/dsh-host-webserver": "0.2.1-rc.5",
     "@deepseek-ai/dsh-llm": "0.2.1-rc.5",
     "@deepseek-ai/dsh-session": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-session-projection": "0.2.1-rc.5",
     "@deepseek-ai/dsh-timeout": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-token-meter": "0.2.1-rc.5",
     "@deepseek-ai/schemastery": "3.18.5",
     "@types/node": "^24.3.0",
     "@types/react": "^18.3.24",

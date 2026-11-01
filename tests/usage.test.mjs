@@ -65,6 +65,50 @@ test('ignores regressing/stale totals rather than emitting negative or duplicate
   assert.equal(tracker.take().totalTokens, 25)
 })
 
+test('separates three billed native responses from the final context occupancy', () => {
+  const tracker = new CodexUsageTracker()
+  tracker.update({ total: total(120000, 100000, 100), last: total(120000, 100000, 100) })
+  tracker.update({ total: total(242000, 210000, 300), last: total(122000, 110000, 200) })
+  tracker.update({ total: total(366000, 330000, 600), last: total(124000, 120000, 300) })
+  assert.equal(tracker.take().totalTokens, 366600)
+  assert.deepEqual(tracker.contextUsage(), { inputTokens: 124000, outputTokens: 300, resetsOnHistoryChange: true })
+  assert.equal(tracker.take(), undefined)
+})
+
+test('context samples cannot be replaced by duplicate or stale notifications', () => {
+  const tracker = new CodexUsageTracker()
+  const value = total(100, 40, 10)
+  tracker.update({ total: value, last: value })
+  tracker.update({ total: value, last: total(9, 0, 1) })
+  tracker.update({ total: total(50, 10, 5), last: total(50, 10, 5) })
+  assert.deepEqual(tracker.contextUsage(), { inputTokens: 100, outputTokens: 10, resetsOnHistoryChange: true })
+  const detached = tracker.contextUsage()
+  detached.inputTokens = 9999
+  assert.equal(tracker.contextUsage().inputTokens, 100)
+})
+
+test('missing or inconsistent last samples explicitly invalidate context, not billing', () => {
+  for (const last of [undefined, {}, total(9999, 0, 1), { ...total(10, 0, 1), outputTokens: -1 }]) {
+    const tracker = new CodexUsageTracker()
+    tracker.update({ total: total(100, 0, 10), last: total(100, 0, 10) })
+    tracker.take()
+    tracker.update({ total: total(200, 0, 20), last })
+    assert.equal(tracker.contextUsage(), null)
+    assert.equal(tracker.take().totalTokens, 110)
+  }
+})
+
+test('billing restore does not restore a stale context sample', () => {
+  const tracker = new CodexUsageTracker()
+  tracker.update({ total: total(100, 40, 10), last: total(100, 40, 10) })
+  assert.equal(tracker.restore(tracker.checkpoint()), true)
+  assert.equal(tracker.contextUsage(), null)
+  assert.equal(tracker.take(), undefined)
+  tracker.update({ total: total(220, 90, 30), last: total(120, 50, 20) })
+  assert.deepEqual(tracker.contextUsage(), { inputTokens: 120, outputTokens: 20, resetsOnHistoryChange: true })
+  assert.equal(tracker.take().totalTokens, 140)
+})
+
 test('keeps independent threads separate', () => {
   const one = new CodexUsageTracker(), two = new CodexUsageTracker()
   update(one, total(100, 10, 10))

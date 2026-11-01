@@ -181,10 +181,10 @@ test('emits actual usage at tool boundaries, including notifications inside the 
   }
   const adapter = new CodexAppServerAdapter(server)
   const first = await Array.fromAsync(adapter.stream({ ...base, messages: [{ role: 'user', content: [{ type: 'text', text: 'ping' }] }] }))
-  assert.deepEqual(first.filter(c => c.type === 'usage').map(c => c.usage), [{ inputTokens: 40, outputTokens: 20, cacheReadTokens: 60, cacheWriteTokens: 0, reasoningTokens: 8, totalTokens: 120 }])
+  assert.deepEqual(first.filter(c => c.type === 'usage').map(c => c.usage), [{ inputTokens: 40, outputTokens: 20, cacheReadTokens: 60, cacheWriteTokens: 0, reasoningTokens: 8, totalTokens: 120, contextUsage: { inputTokens: 100, outputTokens: 20, resetsOnHistoryChange: true } }])
   assert.equal(first.at(-1).type, 'finish')
   const second = await Array.fromAsync(adapter.stream({ ...base, messages: [{ role: 'tool', toolCallId: 'call-1', content: [{ type: 'text', text: 'done' }] }] }))
-  assert.deepEqual(second.filter(c => c.type === 'usage').map(c => c.usage), [{ inputTokens: 20, outputTokens: 15, cacheReadTokens: 140, cacheWriteTokens: 0, reasoningTokens: 5, totalTokens: 175 }])
+  assert.deepEqual(second.filter(c => c.type === 'usage').map(c => c.usage), [{ inputTokens: 20, outputTokens: 15, cacheReadTokens: 140, cacheWriteTokens: 0, reasoningTokens: 5, totalTokens: 175, contextUsage: null }])
   assert.equal(second.at(-1).type, 'finish')
 })
 
@@ -206,6 +206,23 @@ test('preserves observed usage before surfacing a failed turn', async () => {
   }, /test failure/)
   assert.equal(chunks.filter(c => c.type === 'usage').length, 1)
   assert.equal(chunks.find(c => c.type === 'usage').usage.totalTokens, 15)
+  assert.equal(chunks.find(c => c.type === 'usage').usage.contextUsage, null)
+})
+
+for (const terminal of ['interrupted', 'error']) test(`invalidates context sample on ${terminal} without discarding billing`, async () => {
+  const server = new FakeServer()
+  server.startTurn = async () => {
+    server.events.push(usageEvent(10, 2, 5, 1), terminal === 'error'
+      ? { method: 'error', params: { error: { message: 'test failure' } } }
+      : { method: 'turn/completed', params: { turn: { id: 'turn-1', status: terminal } } })
+    return 'turn-1'
+  }
+  const chunks = []
+  const run = async () => { for await (const chunk of new CodexAppServerAdapter(server).stream({ ...base, messages: [] })) chunks.push(chunk) }
+  if (terminal === 'error') await assert.rejects(run, /test failure/)
+  else await run()
+  assert.equal(chunks.find(c => c.type === 'usage').usage.totalTokens, 15)
+  assert.equal(chunks.find(c => c.type === 'usage').usage.contextUsage, null)
 })
 
 test('effective catalog context is exposed and live provider capacity takes precedence', async () => {

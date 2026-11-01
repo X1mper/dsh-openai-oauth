@@ -42,11 +42,17 @@ test('client registers a compact quota pill with accessible localized popover de
  exported.applyLimits(ctx)
  const registration=registrations.find(r=>r.options.id==='codex-account-limits')
  assert.ok(registration);assert.equal(registration.options.name,'conversation.composer.dock');assert.equal(registration.options.order,2)
+ const renderCodex = t => {
+  const child = registration.Component({t,useProjection:()=>({next:{provider:'openai-codex'},lastUsed:null})})
+  return child.type(child.props)
+ }
+ assert.equal(registration.Component({useProjection:()=>undefined}),null)
+ assert.equal(registration.Component({useProjection:()=>({next:{provider:'other'},lastUsed:{provider:'openai-codex'}})}),null)
  function elements(node){if(Array.isArray(node))return node.flatMap(elements);if(!node||typeof node!=='object')return[];return[node,...elements(node.props?.children)]}
  function text(node){if(Array.isArray(node))return node.map(text).join('');if(typeof node==='string'||typeof node==='number')return String(node);return node?.props?text(node.props.children):''}
  for(const language of ['ru','en','zh']){
   const t=(key,params={})=>Object.entries(params).reduce((text,[name,value])=>text.replaceAll('{'+name+'}',String(value)),dictionaries[language][key])
-  const render=()=>{stateIndex=0;return registration.Component({t})}
+  const render=()=>{stateIndex=0;return renderCodex(t)}
   let rendered=render()
   const lines=elements(rendered).filter(e=>e.props?.['data-codex-limit-window'])
   assert.equal(lines.length,2)
@@ -80,7 +86,7 @@ test('client registers a compact quota pill with accessible localized popover de
  rows[0]={...rows[0],windowDurationMins:null,resetsAt:null,usedPercent:103}
  stateIndex=0
  const t=(key,params={})=>Object.entries(params).reduce((text,[name,value])=>text.replaceAll('{'+name+'}',String(value)),dictionaries.en[key])
- const unknown=registration.Component({t})
+ const unknown=renderCodex(t)
  assert.match(text(unknown),/Window duration: Not reported/)
  assert.match(text(unknown),/Resets: Not reported/)
  assert.match(text(unknown),/0% remaining/)

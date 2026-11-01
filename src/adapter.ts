@@ -25,7 +25,7 @@ import type {
 import { codexFailure } from './provider-errors.js'
 import { CodexRpcError } from './rpc-error.js'
 import { AppServer, type ServerEvent } from './app-server.js'
-import { CodexUsageTracker } from './usage.js'
+import { CodexUsageTracker, type ContextualUsage } from './usage.js'
 import { IMAGE_TOOL_GUIDANCE } from './image-generation.js'
 import { codexToolSchema } from './tool-schema.js'
 import { ImageBridge, type ImageStore } from './images.js'
@@ -73,6 +73,8 @@ function addUsage(left: TokenUsage | undefined, right: TokenUsage): TokenUsage {
   const a = (left as TokenUsage & { totalTokens?: number }).totalTokens
   const b = (right as TokenUsage & { totalTokens?: number }).totalTokens
   if (a !== undefined && b !== undefined) result.totalTokens = a + b
+  // Recovery costs accumulate; occupancy belongs only to the final request.
+  ;(result as ContextualUsage).contextUsage = (right as ContextualUsage).contextUsage ?? null
   return result
 }
 
@@ -218,7 +220,7 @@ export class CodexAppServerAdapter extends LlmAdapter {
   }
 
   private configurationKey(options: GenerateOptions): string {
-    return digest(['harness-capabilities-v1', sessionKey(options), options.model, options.system ?? '', toolSpec(options),
+    return digest(['harness-capabilities-v3-context-usage', sessionKey(options), options.model, options.system ?? '', toolSpec(options),
       options.sessionId === undefined ? process.cwd() : this.sessionCwd?.(String(options.sessionId)) ?? process.cwd()])
   }
 
@@ -650,7 +652,7 @@ export class CodexAppServerAdapter extends LlmAdapter {
             }
           }
           const usage = session.usage.take()
-          if (usage !== undefined) yield { type: 'usage', usage: addUsage(recoveryUsage, usage) }
+          if (usage !== undefined) yield { type: 'usage', usage: addUsage(recoveryUsage, { ...usage, contextUsage: session.usage.contextUsage() } as ContextualUsage) }
           rememberAssistant()
           pausedForTools = true
           yield {
@@ -666,9 +668,11 @@ export class CodexAppServerAdapter extends LlmAdapter {
           throw codexFailure(detail)
         }
         if (event.method === 'turn/completed') {
-          const usage = session.usage.take()
-          if (usage !== undefined) yield { type: 'usage', usage: addUsage(recoveryUsage, usage) }
           const turn = event.params.turn as Record<string, unknown>
+          const usage = session.usage.take()
+          const hasAnswer = [...emitted.values()].some(block => block.type === 'text' && block.text.trim())
+          const contextUsage = turn.status === 'completed' && hasAnswer ? session.usage.contextUsage() : null
+          if (usage !== undefined) yield { type: 'usage', usage: addUsage(recoveryUsage, { ...usage, contextUsage } as ContextualUsage) }
           if (turn.status === 'failed') {
             const error = turn.error as Record<string, unknown> | undefined
             throw codexFailure(error)
@@ -694,7 +698,7 @@ export class CodexAppServerAdapter extends LlmAdapter {
       // durable Harness history. Rebuild from the canonical surface on retry.
       if (this.sessions.get(sessionKey(options)) === session) this.sessions.delete(sessionKey(options))
       const usage = session.usage.take()
-      if (usage !== undefined) yield { type: 'usage', usage: addUsage(recoveryUsage, usage) }
+      if (usage !== undefined) yield { type: 'usage', usage: addUsage(recoveryUsage, { ...usage, contextUsage: null } as ContextualUsage) }
       throw error
     } finally {
       // Also handle a consumer closing the async iterator before turn completion.

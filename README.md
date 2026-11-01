@@ -7,13 +7,13 @@
 **Code, search, and create with your ChatGPT account.**<br>
 Your conversations, tools, and permissions stay in Harness.
 
-[![Release](https://img.shields.io/badge/release-v0.6.2-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.2) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v0.6.3-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.3) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
 
 **English** · [Русский](README.ru.md) · [简体中文](README.zh-CN.md)
 
-[Quick start](#start) · [Web & images](#tools) · [Technical guide](guides/REFERENCE.md) · [Release notes](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.2)
+[Quick start](#start) · [Web & images](#tools) · [Technical guide](guides/REFERENCE.md) · [Release notes](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.3)
 
-**0.6.2 keeps skills and waiting under Harness control: no leaked Codex skill catalog or hidden native sleep.** See the [integration guide](guides/NATIVE-PROVIDER.md).
+**0.6.3 adds a Codex-only context indicator that separates context occupancy from billing, plus plugin-based compaction without a host patch.** See the [compatibility and activation guide](guides/context-usage-compat.md).
 
 </div>
 
@@ -43,10 +43,10 @@ Your conversations, tools, and permissions stay in Harness.
 ### 1 · Install
 
 ```sh
-dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.2
+dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.3
 ```
 
-Restart Harness after installation. Prefer an archive? Grab the compiled `.tgz` from the [release page](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.2).
+Restart Harness after installation. Prefer an archive? Grab the compiled `.tgz` from the [release page](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.3).
 
 <details>
 <summary>No <code>dsh</code> command, or using headless?</summary>
@@ -54,7 +54,7 @@ Restart Harness after installation. Prefer an archive? Grab the compiled `.tgz` 
 Use your installed Harness launcher. For example:
 
 ```sh
-npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.2
+npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.3
 ```
 
 Replace `web` with `headless` for that profile. Profiles install their dependencies separately. If your installer does not register the bundle, add `dsh-openai-oauth` to the profile's existing `dsh.profile.bundles` list.
@@ -91,20 +91,22 @@ Choose your provider/model in the profile configuration. [Configuration example 
 
 > Find the official docs for this library, open the relevant page, and explain what changed.
 
-Enable Codex search and page reading in `~/.dsh/profiles/web/cordis.patch.yml`:
+Use Codex search and ordinary HTTP page reading in `~/.dsh/profiles/web/cordis.patch.yml`:
 
 ```yaml
 - id: web
   config:
     searchProvider: openai-codex
-    fetchProvider: openai-codex
+    fetchProvider: http
+- id: codex-web-fetch
+  disabled: true
 - id: tool-web
   config:
     searchTimeoutMs: 120000
     fetchTimeoutMs: 120000
 ```
 
-Apply the same patch to `headless` if you use it. Selecting both providers also avoids the “multiple usable web providers” error. No DeepSeek API key is needed for these Codex-backed tools.
+Apply the same patch to `headless` if you use it. Explicit provider selection also avoids the “multiple usable web providers” error. Search and image generation are shared across model providers. Codex page reading is an optional global opt-in: enable `codex-web-fetch` and select `fetchProvider: openai-codex`; it is not scoped to the active model route. No DeepSeek API key is needed for these Codex-backed tools.
 
 ### 🎨 Start from a sentence. Or a picture.
 
@@ -123,7 +125,7 @@ The result includes a verified file path so the model can show the image in its 
 - **Tested with:** Harness `0.2.1-rc.5`, Node.js `22.19+`; bundled Codex is pinned to `0.166.0`.
 - **Account access:** requires a ChatGPT account with Codex access. Available models, image generation, and quotas depend on your account.
 - **Page reading:** Codex returns extracted text, not raw HTML. HTTP status `0` means unknown. Use `fetchProvider: http` for ordinary HTTP retrieval.
-- **Context:** incoming messages no longer trigger the repeated-compaction loop. `/compact` still uses Harness summaries; recovery is not lossless replay.
+- **Context:** the Codex-only indicator separates occupancy from billing. Plugin compaction requires replacing the existing backend as described in the [compatibility guide](guides/context-usage-compat.md); installation alone does not activate it. `/compact` still uses Harness summaries; recovery is not lossless replay.
 - **Sign-in:** credentials live separately in `~/.deepseek-harness/codex` and are managed by Codex. Another Codex installation's login is not copied.
 
 ## Under the hood
@@ -138,7 +140,7 @@ Harness conversation & tools
      ChatGPT account
 ```
 
-139 automated tests passed for **v0.6.2**. A live Codex request confirmed zero enabled native skills; Harness tools and auxiliary image/search configuration remain intact.
+Automated tests cover billing, compaction, and route isolation.
 
 [Configuration, permissions & recovery](guides/REFERENCE.md) · [Development & checks](guides/REFERENCE.md#development) · [Uninstall](guides/REFERENCE.md#uninstall)
 

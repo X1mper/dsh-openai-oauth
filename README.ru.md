@@ -7,13 +7,13 @@
 **Пиши код, исследуй и рисуй через свой аккаунт ChatGPT.**<br>
 Диалоги, инструменты и разрешения остаются в Harness.
 
-[![Релиз](https://img.shields.io/badge/release-v0.6.2-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.2) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![Лицензия](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
+[![Релиз](https://img.shields.io/badge/release-v0.6.3-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.3) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![Лицензия](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
 
 [English](README.md) · **Русский** · [简体中文](README.zh-CN.md)
 
-[Быстрый старт](#start) · [Веб и картинки](#tools) · [Техническая справка](guides/REFERENCE.ru.md) · [Что в релизе](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.2)
+[Быстрый старт](#start) · [Веб и картинки](#tools) · [Техническая справка](guides/REFERENCE.ru.md) · [Что в релизе](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.3)
 
-**0.6.2 оставляет навыки и ожидание под контролем Harness: без чужого каталога Codex и скрытого сна.** Подробнее в [руководстве по интеграции](guides/NATIVE-PROVIDER.md).
+**0.6.3 добавляет индикатор контекста только для Codex, отделяющий заполнение контекста от биллинга, и сжатие через плагин без патча Harness.** См. [руководство по совместимости и активации](guides/context-usage-compat.md).
 
 </div>
 
@@ -43,10 +43,10 @@
 ### 1 · Установи
 
 ```sh
-dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.2
+dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.3
 ```
 
-После установки перезапусти Harness. Нужен архив? Готовый `.tgz` лежит на [странице релиза](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.2).
+После установки перезапусти Harness. Нужен архив? Готовый `.tgz` лежит на [странице релиза](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.3).
 
 <details>
 <summary>Нет команды <code>dsh</code> или нужен headless?</summary>
@@ -54,7 +54,7 @@ dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.2
 Используй свой launcher Harness. Например:
 
 ```sh
-npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.2
+npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.3
 ```
 
 Для профиля без веб-интерфейса замени `web` на `headless`. У каждого профиля свои зависимости. Если установщик не зарегистрировал bundle автоматически, добавь `dsh-openai-oauth` в существующий список `dsh.profile.bundles` этого профиля.
@@ -91,20 +91,22 @@ npx @deepseek-ai/dsh --profile headless "изучи этот репозитор�
 
 > Найди официальную документацию этой библиотеки, открой нужную страницу и объясни, что изменилось.
 
-Включи поиск и чтение страниц через Codex в `~/.dsh/profiles/web/cordis.patch.yml`:
+Настрой поиск через Codex и обычное HTTP-чтение страниц в `~/.dsh/profiles/web/cordis.patch.yml`:
 
 ```yaml
 - id: web
   config:
     searchProvider: openai-codex
-    fetchProvider: openai-codex
+    fetchProvider: http
+- id: codex-web-fetch
+  disabled: true
 - id: tool-web
   config:
     searchTimeoutMs: 120000
     fetchTimeoutMs: 120000
 ```
 
-Если пользуешься `headless`, добавь настройки и в его patch. Явный выбор обоих провайдеров также устраняет ошибку «multiple usable web providers». Для этих инструментов Codex ключ DeepSeek API не нужен.
+Если пользуешься `headless`, добавь настройки и в его patch. Явный выбор провайдеров также устраняет ошибку «multiple usable web providers». Поиск и генерация изображений доступны независимо от провайдера модели. Чтение страниц через Codex включается отдельно и глобально: включи `codex-web-fetch` и выбери `fetchProvider: openai-codex`; оно не ограничено активным маршрутом модели. Для этих инструментов Codex ключ DeepSeek API не нужен.
 
 ### 🎨 Начни с фразы. Или с картинки.
 
@@ -123,7 +125,7 @@ npx @deepseek-ai/dsh --profile headless "изучи этот репозитор�
 - **Проверено с:** Harness `0.2.1-rc.5`, Node.js `22.19+`; встроенный Codex закреплён на `0.166.0`.
 - **Доступ:** нужен аккаунт ChatGPT с Codex. Доступные модели, генерация картинок и квоты зависят от аккаунта.
 - **Чтение страниц:** Codex возвращает извлечённый текст, не исходный HTML. HTTP `0` означает неизвестный код. Для обычного HTTP-запроса можно выбрать `fetchProvider: http`.
-- **Контекст:** исправлен цикл повторного сжатия при входящих сообщениях. `/compact` по-прежнему использует резюме Harness; восстановление не является побайтовым replay.
+- **Контекст:** индикатор только для Codex отделяет заполнение контекста от биллинга. Для сжатия через плагин нужно заменить существующий backend по [руководству совместимости](guides/context-usage-compat.md); одна установка его не активирует. `/compact` по-прежнему использует резюме Harness; восстановление не является побайтовым replay.
 - **Авторизация:** Codex хранит её отдельно в `~/.deepseek-harness/codex`. Вход из другой установки Codex не копируется.
 
 ## Под капотом
@@ -138,7 +140,7 @@ npx @deepseek-ai/dsh --profile headless "изучи этот репозитор�
       аккаунт ChatGPT
 ```
 
-Для **v0.6.2** прошли 139 автоматических тестов. Живой запрос Codex подтвердил отсутствие активных встроенных навыков; инструменты Harness и настройки компонентов изображений и поиска сохранены.
+Автоматические тесты покрывают биллинг, сжатие контекста и изоляцию маршрутов.
 
 [Настройки, разрешения и восстановление](guides/REFERENCE.ru.md) · [Разработка и проверки](guides/REFERENCE.ru.md#разработка) · [Удаление](guides/REFERENCE.ru.md#удаление)
 

@@ -7,13 +7,13 @@
 **用你的 ChatGPT 账户，写代码、查资料、做创作。**<br>
 对话、工具和权限仍由 Harness 管理。
 
-[![Release](https://img.shields.io/badge/release-v0.6.2-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.2) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v0.6.3-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.3) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
 
 [English](README.md) · [Русский](README.ru.md) · **简体中文**
 
-[快速开始](#start) · [网页与图片](#tools) · [技术参考](guides/REFERENCE.zh-CN.md) · [发行说明](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.2)
+[快速开始](#start) · [网页与图片](#tools) · [技术参考](guides/REFERENCE.zh-CN.md) · [发行说明](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.3)
 
-**0.6.2 将技能与等待交由 Harness 管理，禁用 Codex 自带技能目录和隐藏的睡眠工具。** 请参阅[集成指南](guides/NATIVE-PROVIDER.md)。
+**0.6.3 新增仅用于 Codex 的上下文指示器，将上下文占用与计费用量分开，并通过插件提供压缩，无需修改 Harness 宿主。** 请参阅[兼容性与启用指南](guides/context-usage-compat.md)。
 
 </div>
 
@@ -43,10 +43,10 @@
 ### 1 · 安装
 
 ```sh
-dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.2
+dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.3
 ```
 
-安装后重启 Harness。需要压缩包？[发行页面](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.2)提供已编译的 `.tgz`。
+安装后重启 Harness。需要压缩包？[发行页面](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.3)提供已编译的 `.tgz`。
 
 <details>
 <summary>没有 <code>dsh</code> 命令，或使用 headless？</summary>
@@ -54,7 +54,7 @@ dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.2
 使用你已安装的 Harness 启动器。例如：
 
 ```sh
-npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.2
+npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.3
 ```
 
 无界面使用时将 `web` 替换为 `headless`。各 profile 独立安装依赖。如果安装器未自动注册 bundle，请将 `dsh-openai-oauth` 加入该 profile 现有的 `dsh.profile.bundles` 列表。
@@ -91,20 +91,22 @@ npx @deepseek-ai/dsh --profile headless "分析这个代码仓库"
 
 > 找到这个库的官方文档，打开相关页面，解释发生了哪些变化。
 
-在 `~/.dsh/profiles/web/cordis.patch.yml` 中启用 Codex 搜索和页面读取：
+在 `~/.dsh/profiles/web/cordis.patch.yml` 中配置 Codex 搜索和普通 HTTP 页面读取：
 
 ```yaml
 - id: web
   config:
     searchProvider: openai-codex
-    fetchProvider: openai-codex
+    fetchProvider: http
+- id: codex-web-fetch
+  disabled: true
 - id: tool-web
   config:
     searchTimeoutMs: 120000
     fetchTimeoutMs: 120000
 ```
 
-如果使用 `headless`，也在它的 patch 中添加这些配置。明确选择两个提供方可避免 “multiple usable web providers” 错误。这些 Codex 工具无需 DeepSeek API Key。
+如果使用 `headless`，也在它的 patch 中添加这些配置。明确选择提供方可避免 “multiple usable web providers” 错误。搜索和图片生成可跨模型提供方共享。Codex 页面读取是可选的全局功能：启用 `codex-web-fetch` 并选择 `fetchProvider: openai-codex`；它不按当前模型路由隔离。这些 Codex 工具无需 DeepSeek API Key。
 
 ### 🎨 从一句话，或一张图开始
 
@@ -123,7 +125,7 @@ npx @deepseek-ai/dsh --profile headless "分析这个代码仓库"
 - **验证环境：** Harness `0.2.1-rc.5`、Node.js `22.19+`；内置 Codex 固定为 `0.166.0`。
 - **账户访问：** 需要拥有 Codex 权限的 ChatGPT 账户。模型、图片生成能力和配额取决于账户。
 - **页面读取：** 返回提取的文字，不是原始 HTML。HTTP `0` 表示状态码未知。普通 HTTP 获取可使用 `fetchProvider: http`。
-- **上下文：** 已修复新消息引发反复压缩的问题。`/compact` 仍使用 Harness 摘要；恢复不是无损重放。
+- **上下文：** 仅用于 Codex 的指示器区分上下文占用与计费用量。插件压缩需要按[兼容性指南](guides/context-usage-compat.md)替换现有后端；仅安装插件不会自动启用。`/compact` 仍使用 Harness 摘要；恢复不是无损重放。
 - **登录信息：** 由 Codex 独立管理，保存在 `~/.deepseek-harness/codex`，不会复制另一套 Codex 安装的登录状态。
 
 ## 工作原理
@@ -138,7 +140,7 @@ Harness 对话与工具
    ChatGPT 账户
 ```
 
-**v0.6.2** 通过 139 项自动测试。真实 Codex 请求确认启用的原生技能数为零，同时保留 Harness 工具及图片和搜索组件配置。
+自动测试覆盖计费、上下文压缩和路由隔离。
 
 [配置、权限与恢复](guides/REFERENCE.zh-CN.md) · [开发与检查](guides/REFERENCE.zh-CN.md#本地开发) · [卸载](guides/REFERENCE.zh-CN.md#卸载)
 

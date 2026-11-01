@@ -21,8 +21,11 @@ interface LogEvent {
 interface PolicySession {
     seq: number;
     eventAt(seq: number): LogEvent | undefined;
-    requestContext(): {
-        provider?: string;
+    requestHeader(): {
+        config: {
+            provider?: string;
+            model?: string;
+        };
     } | undefined;
 }
 /** Inspect durable activity; a restarted plugin must not repeat compaction in the same turn. */

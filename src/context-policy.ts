@@ -12,13 +12,15 @@ interface LogEvent { type: string; seq: number; time: number }
 interface PolicySession {
   seq: number
   eventAt(seq: number): LogEvent | undefined
-  requestContext(): { provider?: string } | undefined
+  requestHeader(): { config: { provider?: string; model?: string } } | undefined
 }
 interface Compaction { compactIfNeeded(agent: PolicyAgent, trigger: 'context-overflow', signal: AbortSignal): Promise<unknown> }
 interface PolicyAgent { session: PolicySession; options: { provider?: string }; ctx: { get(name: 'compaction'): Compaction | undefined } }
+interface PromptAssembly { variables: Record<string, string | undefined> }
 interface PolicyContext {
   tokenMeter: { measure(session: PolicySession): { surfaceTokens: number } }
   logger: { warn(message: string): void }
+  on(event: 'system-prompt/assemble', handler: (assembly: PromptAssembly, context: { agent?: PolicyAgent }, next: () => Promise<PromptAssembly>) => Promise<PromptAssembly>, options: { prepend: true }): void
   on(event: 'agent/pre-step', handler: (payload: { agent: PolicyAgent; turn: number; signal: AbortSignal }, next: () => Promise<unknown>) => Promise<unknown>): void
 }
 
@@ -47,12 +49,21 @@ export function apply(ctx: Context, config: LiveConfig = {}): void {
   values(config)
   const services = ctx as unknown as PolicyContext
   const handled = new WeakMap<PolicySession, number>()
+  const models = new WeakMap<PolicyAgent, { provider?: string; model?: string }>()
+  services.on('system-prompt/assemble', async (_assembly, context, next) => {
+    if (context.agent) models.delete(context.agent)
+    const result = await next()
+    if (context.agent) models.set(context.agent, { provider: result.variables.provider, model: result.variables.model })
+    return result
+  }, { prepend: true })
   services.on('agent/pre-step', async ({ agent, turn, signal }, next) => {
     if (signal.aborted || handled.get(agent.session) === turn) return next()
     handled.set(agent.session, turn)
     const { idleMinutes, minHistoryTokens } = values(config)
-    const provider = agent.options.provider ?? agent.session.requestContext()?.provider
-    if (provider !== 'openai-codex' || !idleHistory(agent.session, Date.now(), idleMinutes)) return next()
+    const route = models.get(agent)
+    const durable = agent.session.requestHeader()?.config
+    if (!route?.model || route.provider !== 'openai-codex' || durable?.provider !== route.provider || durable.model !== route.model) return next()
+    if (!idleHistory(agent.session, Date.now(), idleMinutes)) return next()
     if (services.tokenMeter.measure(agent.session).surfaceTokens < minHistoryTokens) return next()
     const compaction = agent.ctx.get('compaction')
     if (!compaction) return next()

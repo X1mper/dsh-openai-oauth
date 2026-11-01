@@ -11,5 +11,7 @@
       name: dsh-openai-oauth/images
     - id: codex-account
       name: dsh-openai-oauth/account
+    - id: codex-context-indicator
+      name: dsh-openai-oauth/context-indicator
     - id: codex-context-policy
       name: dsh-openai-oauth/context

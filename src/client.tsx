@@ -10,6 +10,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { SettingsSectionOwnerProps } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { applyLimits } from './limits-client.js'
+import { applyContextIndicator } from './context-indicator-client.js'
 
 const ENDPOINT = '/api/codex-oauth'
 
@@ -199,6 +200,7 @@ export const inject = ['slots', 'locale', 'configForms']
 
 export function apply(ctx: ClientContext): void {
   applyLimits(ctx)
+  applyContextIndicator(ctx)
   const policy = ctx.configForms.get<ContextPolicyConfig>('codex-context-policy')
   const subscribeLocale = (listener: () => void) => ctx.locale.subscribe(listener)
   const getLocale = () => ctx.locale.getLocale().active

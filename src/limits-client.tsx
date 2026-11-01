@@ -1,8 +1,9 @@
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import { useEffect, useId, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
+import type { SessionStandardProps, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { LimitWindow } from './limits.js'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -24,7 +25,12 @@ function windowLabel(row: LimitWindow, t: T): string {
   return t('minutes', { count: minutes })
 }
 
-export function CodexLimits({ t }: { t: T }): ReactNode {
+export function CodexLimits({ t, useProjection }: { t: T; useProjection: SessionStandardProps['useProjection'] }): ReactNode {
+  const selection = useProjection('modelSelection')
+  return (selection?.next ?? selection?.lastUsed)?.provider === 'openai-codex' ? <CodexLimitsPolling t={t}/> : null
+}
+
+function CodexLimitsPolling({ t }: { t: T }): ReactNode {
   const [snapshot, setSnapshot] = useState<{ authenticated: boolean; windows: LimitWindow[] }>()
   const [failed, setFailed] = useState(false)
   const [open, setOpen] = useState(false)

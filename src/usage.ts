@@ -22,10 +22,21 @@ function snapshot(value: unknown): Snapshot | undefined {
   return result
 }
 
+/** Context occupancy is NOT the sum of billed requests in a Harness call. */
+export interface ContextUsage {
+  inputTokens: number
+  outputTokens: number
+  resetsOnHistoryChange: true
+}
+export type ContextualUsage = TokenUsage & { contextUsage?: ContextUsage | null }
+
 /** Convert cumulative thread counters to disjoint, once-only Harness call usage. */
 export class CodexUsageTracker {
   private latest = zero()
   private reported = zero()
+  private context: ContextUsage | null = null
+
+  contextUsage(): ContextUsage | null { return this.context === null ? null : { ...this.context } }
 
   checkpoint(): Snapshot { return { ...this.latest } }
 
@@ -34,6 +45,8 @@ export class CodexUsageTracker {
     if (saved === undefined) return false
     this.latest = { ...saved }
     this.reported = { ...saved }
+    // A restored billing checkpoint cannot establish current request occupancy.
+    this.context = null
     return true
   }
 
@@ -41,6 +54,14 @@ export class CodexUsageTracker {
     if (tokenUsage === null || typeof tokenUsage !== 'object') return
     const total = snapshot((tokenUsage as Record<string, unknown>).total)
     if (total === undefined || counters.some(key => total[key] < this.latest[key])) return
+    if (total.totalTokens === this.latest.totalTokens) return
+    const last = snapshot((tokenUsage as Record<string, unknown>).last)
+    // Only bind a sample to newly accepted counters. Duplicate/out-of-order
+    // notifications must not overwrite the sample with an unrelated `last`.
+    this.context = last !== undefined && last.totalTokens > 0
+      && counters.every(key => last[key] <= total[key] - this.latest[key])
+      ? { inputTokens: last.inputTokens, outputTokens: last.outputTokens, resetsOnHistoryChange: true }
+      : null
     this.latest = total
   }
 
