@@ -360,7 +360,7 @@ test('restart resumes verified completed thread and sends only new input', async
   assert.equal(server.turns.at(-1).input[0].text, 'continue')
 })
 
-for (const change of ['history', 'assistant', 'model', 'session', 'remote', 'pending']) {
+for (const change of ['history', 'assistant', 'model', 'session', 'remote', 'pending', 'capabilities']) {
   test(`restart rejects incompatible ${change} checkpoint`, async () => {
     const server = new TextServer(); let first = user('original facts')
     const chunks = await run(new CodexAppServerAdapter(server), { messages: [first] })
@@ -370,6 +370,7 @@ for (const change of ['history', 'assistant', 'model', 'session', 'remote', 'pen
     if (change === 'history') first = user('edited history')
     if (change === 'assistant') message.content = [{ type: 'text', text: 'edited answer' }]
     if (change === 'pending') message.source.replayState.response.resumable = false
+    if (change === 'capabilities') message.source.replayState.response.configuration = 'pre-isolation-policy'
     await run(new CodexAppServerAdapter(server), { messages: [first, message, user('continue')],
       ...(change === 'model' ? { model: 'other' } : {}), ...(change === 'session' ? { sessionId: 'fork' } : {}) })
     assert.equal(resumes, change === 'remote' ? 1 : 0)

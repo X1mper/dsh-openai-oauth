@@ -89,6 +89,7 @@ export class AppServer {
       '-c', 'features.multi_agent=false',
       '-c', 'features.plugins=false',
       '-c', 'features.skill_search=false',
+      '-c', 'features.sleep_tool=false',
       '-c', 'features.tool_suggest=false',
       '-c', 'features.unified_exec=false',
       '-c', 'features.workspace_dependencies=false',
@@ -203,8 +204,30 @@ export class AppServer {
     }))
   }
 
+  /** Harness owns skill discovery and loading; never advertise a second catalog.
+   * Re-scan at thread boundaries so newly installed Codex skills are covered too.
+   * Overrides are thread-local: no config files or bundled skill files are changed.
+   */
+  private async isolatedConfig(cwd: string, config: JsonObject = {}): Promise<JsonObject> {
+    const result = await this.request('skills/list', { cwds: [cwd], forceReload: true })
+    if (!Array.isArray(result.data) || result.data.length !== 1) throw new Error('Cannot isolate Codex skills: invalid catalog')
+    const entry = result.data[0] as JsonObject
+    if (!Array.isArray(entry.skills) || !Array.isArray(entry.errors) || entry.errors.length) {
+      throw new Error('Cannot isolate Codex skills: discovery failed')
+    }
+    const paths = new Set<string>()
+    for (const skill of entry.skills as JsonObject[]) {
+      if (typeof skill.path !== 'string' || !skill.path) throw new Error('Cannot isolate Codex skills: invalid path')
+      paths.add(skill.path)
+    }
+    return { ...config, 'skills.config': [...paths].map(path => ({ path, enabled: false })),
+      'features.sleep_tool': false }
+  }
+
   async startThread(input: JsonObject): Promise<string> {
-    const result = await this.request('thread/start', input)
+    const cwd = typeof input.cwd === 'string' ? input.cwd : codexHome()
+    const config = await this.isolatedConfig(cwd, input.config as JsonObject | undefined)
+    const result = await this.request('thread/start', { ...input, config })
     const thread = result.thread as JsonObject
     const id = thread.id
     if (typeof id !== 'string') throw new Error('Codex thread/start returned no thread id')
@@ -225,8 +248,9 @@ export class AppServer {
   }
 
   /** Resume only an exact, completed checkpoint, never a stale tool RPC. */
-  async resumeCompletedThread(threadId: string, turnId: string): Promise<boolean> {
-    await this.request('thread/resume', { threadId, excludeTurns: true })
+  async resumeCompletedThread(threadId: string, turnId: string, cwd = codexHome()): Promise<boolean> {
+    const config = await this.isolatedConfig(cwd)
+    await this.request('thread/resume', { threadId, excludeTurns: true, config })
     const result = await this.request('thread/turns/list', { threadId, limit: 1, sortDirection: 'desc', itemsView: 'notLoaded' })
     const latest = (result.data as JsonObject[] | undefined)?.[0]
     if (latest?.id !== turnId || latest.status !== 'completed') {

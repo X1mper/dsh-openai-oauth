@@ -55,6 +55,7 @@ test('steering targets the active turn and resume verifies persisted latest turn
   const server = new AppServer(); const calls = []
   server.request = async (method, params) => {
     calls.push({ method, params })
+    if (method === 'skills/list') return { data: [{ skills: [], errors: [] }] }
     if (method === 'thread/turns/list') return { data: [{ id: 'done', status: 'completed' }] }
     return {}
   }
@@ -65,9 +66,47 @@ test('steering targets the active turn and resume verifies persisted latest turn
   server.queue('thread').fail(new Error('old process'))
   assert.equal(await server.resumeCompletedThread('thread', 'done'), true)
   assert.equal(calls.at(-1).params.itemsView, 'notLoaded')
+  const resumed = calls.find(call => call.method === 'thread/resume').params
+  assert.deepEqual(resumed.config['skills.config'], [])
+  assert.equal(resumed.config['features.sleep_tool'], false)
   server.queue('thread').push({ method: 'turn/started', params: {} })
   assert.equal((await server.nextEvent('thread')).method, 'turn/started')
   assert.equal(await server.resumeCompletedThread('thread', 'stale'), false)
+})
+
+test('thread isolation disables every discovered skill without changing Harness tools or auxiliary features', async () => {
+  const { AppServer } = await import('../lib/app-server.js')
+  const server = new AppServer(); const calls = []
+  let names = ['imagegen', 'openai-docs', 'future-skill']
+  server.request = async (method, params) => {
+    calls.push({ method, params })
+    if (method === 'skills/list') return { data: [{ skills: names.map(name => ({ path: '/skills/' + name + '/SKILL.md' })), errors: [] }] }
+    return { thread: { id: 'isolated' } }
+  }
+  const input = { cwd: '/project', dynamicTools: [{ name: 'image_generate' }, { name: 'skill' }],
+    config: { 'features.image_generation': true, web_search: 'live' } }
+  await server.startThread(input)
+  assert.deepEqual(calls[0], { method: 'skills/list', params: { cwds: ['/project'], forceReload: true } })
+  const started = calls.at(-1).params
+  assert.deepEqual(started.dynamicTools, input.dynamicTools)
+  assert.equal(started.config['features.image_generation'], true)
+  assert.equal(started.config.web_search, 'live')
+  assert.equal(started.config['features.sleep_tool'], false)
+  assert.deepEqual(started.config['skills.config'], names.map(name => ({ path: '/skills/' + name + '/SKILL.md', enabled: false })))
+  assert.equal(input.config['skills.config'], undefined)
+  names.push('newly-installed')
+  await server.startThread(input)
+  assert.equal(calls.at(-1).params.config['skills.config'].length, 4)
+})
+
+test('skill discovery failures cannot silently launch an unisolated thread', async () => {
+  const { AppServer } = await import('../lib/app-server.js')
+  for (const result of [{}, { data: [] }, { data: [{ skills: [], errors: ['failed'] }] },
+    { data: [{ skills: [{}], errors: [] }] }]) {
+    const server = new AppServer()
+    server.request = async method => { assert.equal(method, 'skills/list'); return result }
+    await assert.rejects(server.startThread({ cwd: '/project' }), /Cannot isolate Codex skills/)
+  }
 })
 
 test('JSON-RPC failures preserve code and structured data without JSON in the message', async () => {

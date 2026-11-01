@@ -218,7 +218,7 @@ export class CodexAppServerAdapter extends LlmAdapter {
   }
 
   private configurationKey(options: GenerateOptions): string {
-    return digest([sessionKey(options), options.model, options.system ?? '', toolSpec(options),
+    return digest(['harness-capabilities-v1', sessionKey(options), options.model, options.system ?? '', toolSpec(options),
       options.sessionId === undefined ? process.cwd() : this.sessionCwd?.(String(options.sessionId)) ?? process.cwd()])
   }
 
@@ -245,7 +245,8 @@ export class CodexAppServerAdapter extends LlmAdapter {
     const usage = new CodexUsageTracker()
     if (!usage.restore(saved.usage)) return
     try {
-      if (!await this.server.resumeCompletedThread(saved.threadId, saved.turnId)) return
+      if (!await this.server.resumeCompletedThread(saved.threadId, saved.turnId,
+        options.sessionId === undefined ? process.cwd() : this.sessionCwd?.(String(options.sessionId)) ?? process.cwd())) return
     } catch {
       await this.server.releaseThread?.(saved.threadId).catch(() => {})
       return
