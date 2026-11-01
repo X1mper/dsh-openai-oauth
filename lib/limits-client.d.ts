@@ -9,7 +9,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
         };
     }
     interface LocaleNamespaceMap {
-        codexUsageLimits: 'used' | 'hours' | 'days' | 'minutes' | 'primary' | 'secondary' | 'reset' | 'loading' | 'unavailable' | 'empty' | 'remaining' | 'duration' | 'unknown' | 'updated' | 'refresh' | 'explanation' | 'untilReset' | 'seconds';
+        codexUsageLimits: 'used' | 'hours' | 'days' | 'minutes' | 'primary' | 'secondary' | 'reset' | 'loading' | 'unavailable' | 'empty' | 'remaining' | 'duration' | 'unknown' | 'updated' | 'refresh' | 'explanation' | 'untilReset' | 'seconds' | 'label' | 'estimate' | 'sample' | 'unknownContext' | 'details';
     }
 }
 declare const NS = "codexUsageLimits";

@@ -87,6 +87,8 @@ export class AppServer {
       '-c', 'features.image_generation=false',
       '-c', 'features.in_app_browser=false',
       '-c', 'features.multi_agent=false',
+      // V2 overrides agents.enabled=false; keep both native runtimes off.
+      '-c', 'features.multi_agent_v2=false',
       '-c', 'features.plugins=false',
       '-c', 'features.skill_search=false',
       '-c', 'features.sleep_tool=false',
@@ -221,7 +223,8 @@ export class AppServer {
       paths.add(skill.path)
     }
     return { ...config, 'skills.config': [...paths].map(path => ({ path, enabled: false })),
-      'features.sleep_tool': false }
+      'features.sleep_tool': false, 'features.multi_agent': false,
+      'features.multi_agent_v2': false, 'agents.enabled': false }
   }
 
   async startThread(input: JsonObject): Promise<string> {

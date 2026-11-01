@@ -83,3 +83,17 @@ test('adapter sends Codex-compatible coordinate schema for a reserved MCP tool',
   assert.equal(server.input.dynamicTools[0].inputSchema.properties.coordinate.maxItems, 2)
   assert.ok(Array.isArray(input.tools[0].parameters.properties.coordinate.items))
 })
+
+for (const name of ['list_mcp_resources', 'list_mcp_resource_templates', 'read_mcp_resource']) {
+ test(`native resource discovery collision is aliased and round-trips: ${name}`, async()=>{
+  const server=new Server()
+  server.startTurn=async()=>{
+   const tool=server.input.dynamicTools.find(t=>t.description===name)
+   assert.notEqual(tool.name,name)
+   server.events.push({method:'item/tool/call',requestId:1,params:{callId:'call',tool:tool.name,arguments:{}}})
+   return 'turn'
+  }
+  const chunks=await Array.fromAsync(new CodexAppServerAdapter(server).stream(options([name])))
+  assert.equal(chunks.find(c=>c.type==='block-end').block.name,name)
+ })
+}

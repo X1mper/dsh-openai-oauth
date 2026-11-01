@@ -5,10 +5,11 @@ import type { ReactNode } from 'react'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { SessionStandardProps, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { LimitWindow } from './limits.js'
+import { CodexContextIndicator, contextDictionaries } from './context-indicator-client.js'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap { 'conversation.composer.dock': { kind: 'list'; scope: 'session' } }
-  interface LocaleNamespaceMap { codexUsageLimits: 'used' | 'hours' | 'days' | 'minutes' | 'primary' | 'secondary' | 'reset' | 'loading' | 'unavailable' | 'empty' | 'remaining' | 'duration' | 'unknown' | 'updated' | 'refresh' | 'explanation' | 'untilReset' | 'seconds' }
+  interface LocaleNamespaceMap { codexUsageLimits: 'used' | 'hours' | 'days' | 'minutes' | 'primary' | 'secondary' | 'reset' | 'loading' | 'unavailable' | 'empty' | 'remaining' | 'duration' | 'unknown' | 'updated' | 'refresh' | 'explanation' | 'untilReset' | 'seconds' | 'label' | 'estimate' | 'sample' | 'unknownContext' | 'details' }
 }
 const NS = 'codexUsageLimits'
 const dictionaries = {
@@ -27,10 +28,10 @@ function windowLabel(row: LimitWindow, t: T): string {
 
 export function CodexLimits({ t, useProjection }: { t: T; useProjection: SessionStandardProps['useProjection'] }): ReactNode {
   const selection = useProjection('modelSelection')
-  return (selection?.next ?? selection?.lastUsed)?.provider === 'openai-codex' ? <CodexLimitsPolling t={t}/> : null
+  return (selection?.next ?? selection?.lastUsed)?.provider === 'openai-codex' ? <CodexLimitsPolling t={t} useProjection={useProjection}/> : null
 }
 
-function CodexLimitsPolling({ t }: { t: T }): ReactNode {
+function CodexLimitsPolling({ t, useProjection }: { t: T; useProjection: SessionStandardProps['useProjection'] }): ReactNode {
   const [snapshot, setSnapshot] = useState<{ authenticated: boolean; windows: LimitWindow[] }>()
   const [failed, setFailed] = useState(false)
   const [open, setOpen] = useState(false)
@@ -77,7 +78,7 @@ function CodexLimitsPolling({ t }: { t: T }): ReactNode {
     document.addEventListener('visibilitychange', visible)
     return () => { controller.abort(); window.clearInterval(timer); document.removeEventListener('visibilitychange', visible) }
   }, [refreshKey])
-  if (snapshot?.authenticated === false) return null
+  // Keep context accessible even when account quota is unavailable.
   const rows = snapshot?.windows ?? []
   const status = t(failed ? 'unavailable' : snapshot === undefined ? 'loading' : 'empty')
   const percent = (value: number): string => new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(value)
@@ -100,6 +101,10 @@ function CodexLimitsPolling({ t }: { t: T }): ReactNode {
   }
   return <span data-codex-limits={rows.length ? 'windows' : 'status'} style={{ display: 'inline-flex', minWidth: 0 }}>
     <style>{`
+      /* Presentation-only compatibility selector for Harness 0.2.1-rc.5.
+         Scoped to this composer and only while its Codex control is mounted. */
+      [data-composer-dock]:has([data-codex-limits]) > .JObwrW_root,
+      [data-composer-dock]:has([data-codex-limits]) [data-composer-stat="usage"]{display:none}
       .codex-quota-pill{box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;max-width:100%;border:0;border-radius:var(--dsw-radius-sm,6px);padding:1px 8px;background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:12px;line-height:20px;font-variant-numeric:tabular-nums;cursor:pointer;white-space:nowrap}
       .codex-quota-pill:hover,.codex-quota-pill[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}
       .codex-quota-pill:focus-visible,.codex-quota-refresh:focus-visible{outline:2px solid var(--dsw-alias-label-secondary);outline-offset:2px}
@@ -108,9 +113,8 @@ function CodexLimitsPolling({ t }: { t: T }): ReactNode {
       .codex-quota-refresh:disabled{opacity:.5;cursor:wait}
     `}</style>
     <button ref={triggerRef} className="codex-quota-pill" type="button" aria-haspopup="dialog" aria-expanded={open} aria-controls={panelId} onClick={toggle} title={rows.length ? t('explanation') : status}>
-      {icon}<span>ChatGPT</span>
-      {rows.map(row => <span key={`${row.id}:${row.window}`} style={{ color: row.usedPercent >= 90 ? 'var(--dsw-alias-state-warn-primary)' : 'inherit' }}>{windowLabel(row, t)} · {percent(row.usedPercent)}%</span>)}
-      {!rows.length && <span aria-label={status}>{failed ? '!' : snapshot === undefined ? '…' : '—'}</span>}
+      {icon}<span>Codex</span>
+      {rows.map(row => <span key={`${row.id}:${row.window}`} title={windowLabel(row, t)} style={{ color: row.usedPercent >= 90 ? 'var(--dsw-alias-state-warn-primary)' : 'inherit' }}>{percent(row.usedPercent)}%</span>)}
       <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true"><path d={open ? 'm4 10 4-4 4 4' : 'm4 6 4 4 4-4'}/></svg>
     </button>
     <div ref={panelRef} id={panelId} {...{ popover: 'auto' }} role="dialog" aria-label="ChatGPT" className="codex-quota-panel">
@@ -118,6 +122,7 @@ function CodexLimitsPolling({ t }: { t: T }): ReactNode {
         <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--dsw-alias-label-primary)', fontWeight: 500 }}>{icon} ChatGPT</strong>
         <button className="codex-quota-refresh" type="button" disabled={refreshing} onClick={() => setRefreshKey(value => value + 1)}>{t('refresh')}</button>
       </div>
+      <CodexContextIndicator useProjection={useProjection} t={(key) => t(key === 'unknown' ? 'unknownContext' : key)}/>
       {!rows.length && <p role="status">{status}</p>}
       {rows.map(row => <section key={`${row.id}:${row.window}`} data-codex-limit-window={row.window} style={{ padding: '12px 0', borderBottom: '0.5px solid var(--dsw-alias-border-l2)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
@@ -140,6 +145,6 @@ function CodexLimitsPolling({ t }: { t: T }): ReactNode {
 
 export function applyLimits(ctx: ClientContext): void {
   const locale = (ctx as unknown as { locale: { register(ns: string, language: string, dict: Record<string, string>): () => void } }).locale
-  for (const [language, dict] of Object.entries(dictionaries)) ctx.effect(() => locale.register(NS, language, dict), `codex-limits.locale.${language}`)
+  for (const [language, dict] of Object.entries(dictionaries)) ctx.effect(() => locale.register(NS, language, { ...dict, ...contextDictionaries[language as keyof typeof contextDictionaries], unknown: dict.unknown, unknownContext: contextDictionaries[language as keyof typeof contextDictionaries].unknown }), `codex-limits.locale.${language}`)
   ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({ name: 'conversation.composer.dock', id: 'codex-account-limits', order: 2, locale: NS }, CodexLimits))
 }

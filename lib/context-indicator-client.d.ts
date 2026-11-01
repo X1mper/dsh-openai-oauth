@@ -8,6 +8,29 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     }
 }
 declare const NS = "codexContext";
+export declare const contextDictionaries: {
+    en: {
+        label: string;
+        estimate: string;
+        sample: string;
+        unknown: string;
+        details: string;
+    };
+    ru: {
+        label: string;
+        estimate: string;
+        sample: string;
+        unknown: string;
+        details: string;
+    };
+    zh: {
+        label: string;
+        estimate: string;
+        sample: string;
+        unknown: string;
+        details: string;
+    };
+};
 export declare function contextForRoute(view: CodexContextView | null | undefined, route: {
     provider: string;
     model: string;

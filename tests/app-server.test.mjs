@@ -69,6 +69,8 @@ test('steering targets the active turn and resume verifies persisted latest turn
   const resumed = calls.find(call => call.method === 'thread/resume').params
   assert.deepEqual(resumed.config['skills.config'], [])
   assert.equal(resumed.config['features.sleep_tool'], false)
+  assert.equal(resumed.config['features.multi_agent_v2'], false)
+  assert.equal(resumed.config['agents.enabled'], false)
   server.queue('thread').push({ method: 'turn/started', params: {} })
   assert.equal((await server.nextEvent('thread')).method, 'turn/started')
   assert.equal(await server.resumeCompletedThread('thread', 'stale'), false)
@@ -84,7 +86,8 @@ test('thread isolation disables every discovered skill without changing Harness 
     return { thread: { id: 'isolated' } }
   }
   const input = { cwd: '/project', dynamicTools: [{ name: 'image_generate' }, { name: 'skill' }],
-    config: { 'features.image_generation': true, web_search: 'live' } }
+    config: { 'features.image_generation': true, web_search: 'live',
+      'features.multi_agent_v2': true, 'agents.enabled': true } }
   await server.startThread(input)
   assert.deepEqual(calls[0], { method: 'skills/list', params: { cwds: ['/project'], forceReload: true } })
   const started = calls.at(-1).params
@@ -92,6 +95,9 @@ test('thread isolation disables every discovered skill without changing Harness 
   assert.equal(started.config['features.image_generation'], true)
   assert.equal(started.config.web_search, 'live')
   assert.equal(started.config['features.sleep_tool'], false)
+  assert.equal(started.config['features.multi_agent'], false)
+  assert.equal(started.config['features.multi_agent_v2'], false)
+  assert.equal(started.config['agents.enabled'], false)
   assert.deepEqual(started.config['skills.config'], names.map(name => ({ path: '/skills/' + name + '/SKILL.md', enabled: false })))
   assert.equal(input.config['skills.config'], undefined)
   names.push('newly-installed')

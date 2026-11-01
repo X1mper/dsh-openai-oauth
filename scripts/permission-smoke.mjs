@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { CodexAppServerAdapter } from '../lib/index.js'
+const { CodexAppServerAdapter } = await import(process.env.DSH_SMOKE_ADAPTER ?? '../lib/index.js')
 import { AppServer } from '../lib/app-server.js'
 
 const dir = await mkdtemp(join(tmpdir(), 'dsh-permission-smoke-'))

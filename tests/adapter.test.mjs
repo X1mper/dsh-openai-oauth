@@ -17,6 +17,7 @@ class FakeServer {
   }
   async startThread(input) { this.threadInput = input; return 'thread-1' }
   async startTurn(_threadId, input) {
+    this.turnPolicy = input.sandboxPolicy
     this.turnInput = input.input[0].text
     this.events.push({
       method: 'item/tool/call', requestId: 7,
@@ -63,6 +64,7 @@ test('bridges a Codex dynamic tool call across two Harness model steps', async (
     ],
   }))
   assert.equal(server.turnInput, 'ping\n\nruntime context')
+  assert.deepEqual(server.turnPolicy, { type: 'externalSandbox', networkAccess: 'enabled' })
   assert.equal(server.threadInput.sandbox, 'read-only')
   assert.deepEqual(server.threadInput.environments, [])
   assert.equal(server.threadInput.approvalPolicy, 'never')

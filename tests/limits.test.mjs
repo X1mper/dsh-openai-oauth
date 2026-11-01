@@ -3,6 +3,7 @@ import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
+import * as contextIndicator from '../lib/context-indicator-client.js'
 import { limitWindows } from '../lib/limits.js'
 import { handleOAuthRequest } from '../lib/oauth-http.js'
 const require=createRequire(import.meta.url)
@@ -37,7 +38,7 @@ test('client registers a compact quota pill with accessible localized popover de
  const ts=require('typescript')
  const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText
  const exported={}
- vm.runInNewContext(compiled,{exports:exported,require:name=>name==='react'?react:require(name),Date,Intl,window:{innerWidth:1024}})
+ vm.runInNewContext(compiled,{exports:exported,require:name=>name==='react'?react:name==='./context-indicator-client.js'?contextIndicator:require(name),Date,Intl,window:{innerWidth:1024}})
  const ctx={locale:{register(ns,language,dict){dictionaries[language]=dict;return()=>{}}},effect(fn){fn()},slots:{inject(_slot,fn){fn()},register(options,Component){registrations.push({options,Component});return()=>{}}}}
  exported.applyLimits(ctx)
  const registration=registrations.find(r=>r.options.id==='codex-account-limits')
@@ -62,7 +63,7 @@ test('client registers a compact quota pill with accessible localized popover de
   const trigger=buttons[0]
   assert.equal(trigger.props['aria-haspopup'],'dialog')
   assert.equal(trigger.props['aria-expanded'],false)
-  assert.ok(text(trigger).includes('37%'));assert.ok(text(trigger).includes('62%'))
+  assert.equal(text(trigger),'Codex37%62%')
   let shown=false
   const panel={style:{},showPopover(){shown=true},hidePopover(){shown=false},getBoundingClientRect(){return {width:360,height:300}}}
   const details=elements(rendered).find(e=>e.props?.id===trigger.props['aria-controls'])

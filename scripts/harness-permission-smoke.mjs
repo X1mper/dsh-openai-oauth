@@ -39,9 +39,19 @@ try {
     const target = join(workspace, 'settings.json')
     const before = '{"enabled":false}\n'
     await writeFile(target, before)
+    const env = { ...process.env, DSH_HOME: home, DSH_PERMISSION_MODE: mode }
+    const archive = process.env.DSH_SMOKE_PACKAGE
+    if (archive) {
+      const installed = await run(['plugin', '--profile', 'headless', 'add', 'file:' + resolve(archive)], workspace, env)
+      assert.equal(installed.code, 0, installed.stderr)
+      const manifestPath = join(home, 'profiles/headless/package.json')
+      const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
+      manifest.dsh.profile.bundles = [...new Set([...manifest.dsh.profile.bundles, 'dsh-openai-oauth'])]
+      await writeFile(manifestPath, JSON.stringify(manifest))
+    }
     const patch = join(dir, 'patch.json')
     await writeFile(patch, JSON.stringify([
-      { insert: [{ id: 'llm-codex-app-server', name: provider }] },
+      ...archive ? [] : [{ insert: [{ id: 'codex-runtime', name: resolve(provider, '../runtime.js') }, { id: 'llm-codex-app-server', name: provider }] }],
       { id: 'agent-default-model', config: { provider: 'openai-codex', model: process.env.DSH_SMOKE_MODEL ?? 'gpt-5.6-sol', reasoningEffort: 'low' } },
       { id: 'sandbox-policy', config: { mode, workspaceRoot: workspace } },
       { id: 'approval', config: { policy: 'never' } },
@@ -50,7 +60,7 @@ try {
     ]))
     const result = await run(['--profile', 'headless', '--patch', patch,
       'Update settings.json so enabled is true, then read it back to verify. Only change this file. Attempt the requested edit through the available file tools. If a tool rejects it, report the actual error and stop without escalation or trying another write mechanism.'], workspace,
-      { ...process.env, DSH_HOME: home, DSH_PERMISSION_MODE: mode })
+      env)
     assert.equal(result.code, 0, result.stderr.slice(-5000))
     const paths = await files(join(home, 'sessions'))
     const events = paths.flatMap(p => execFileSync('zstd', ['-dc', p], { encoding: 'utf8' }).trim().split('\n').map(JSON.parse))

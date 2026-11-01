@@ -7,13 +7,13 @@
 **Пиши код, исследуй и рисуй через свой аккаунт ChatGPT.**<br>
 Диалоги, инструменты и разрешения остаются в Harness.
 
-[![Релиз](https://img.shields.io/badge/release-v0.6.3-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.3) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![Лицензия](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
+[![Релиз](https://img.shields.io/badge/release-v0.7.0-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.7.0) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![Лицензия](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
 
 [English](README.md) · **Русский** · [简体中文](README.zh-CN.md)
 
-[Быстрый старт](#start) · [Веб и картинки](#tools) · [Техническая справка](guides/REFERENCE.ru.md) · [Что в релизе](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.3)
+[Быстрый старт](#start) · [Веб и картинки](#tools) · [Техническая справка](guides/REFERENCE.ru.md) · [Что в релизе](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.7.0)
 
-**0.6.3 добавляет индикатор контекста только для Codex, отделяющий заполнение контекста от биллинга, и сжатие через плагин без патча Harness.** См. [руководство по совместимости и активации](guides/context-usage-compat.md).
+**0.7.0 объединяет квоты и контекст под одной кнопкой Codex, исправляет противоречивые сведения о правах и конфликты имён MCP-инструментов, отключает нативный multi-agent v2. Права инструментов проверяет Harness; патч ядра не нужен.** См. [руководство по совместимости и активации](guides/context-usage-compat.md).
 
 </div>
 
@@ -43,10 +43,10 @@
 ### 1 · Установи
 
 ```sh
-dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.3
+dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.7.0
 ```
 
-После установки перезапусти Harness. Нужен архив? Готовый `.tgz` лежит на [странице релиза](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.6.3).
+После установки перезапусти Harness. Нужен архив? Готовый `.tgz` лежит на [странице релиза](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.7.0).
 
 <details>
 <summary>Нет команды <code>dsh</code> или нужен headless?</summary>
@@ -54,7 +54,7 @@ dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.3
 Используй свой launcher Harness. Например:
 
 ```sh
-npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.6.3
+npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.7.0
 ```
 
 Для профиля без веб-интерфейса замени `web` на `headless`. У каждого профиля свои зависимости. Если установщик не зарегистрировал bundle автоматически, добавь `dsh-openai-oauth` в существующий список `dsh.profile.bundles` этого профиля.

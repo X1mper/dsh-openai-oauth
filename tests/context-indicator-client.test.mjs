@@ -20,6 +20,11 @@ test('context widget hides other/unknown providers and excludes stale model data
  assert.ok(JSON.stringify(pending).includes('unknown'))
  assert.ok(!JSON.stringify(pending).includes('2313'))
 })
+test('context registers translations but no standalone composer item',()=>{
+ let slots=0
+ exports.applyContextIndicator({locale:{register:()=>()=>{}},effect:fn=>fn(),slots:{inject:()=>slots++}})
+ assert.equal(slots,0)
+})
 test('indicator renders estimate marker and accessible bounded percentage without billing',()=>{
  const node=render({next:route})
  const s=JSON.stringify(node)

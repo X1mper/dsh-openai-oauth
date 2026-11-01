@@ -10,10 +10,10 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap { codexContext: 'label' | 'estimate' | 'sample' | 'unknown' | 'details' }
 }
 const NS = 'codexContext'
-const dictionaries = {
-  en: { label: 'Codex context', estimate: 'estimate', sample: 'last request + estimated growth', unknown: 'not available', details: 'Approximate occupied context, not billing or ChatGPT quota. Hidden image/provider overhead and in-flight output may be missing. The native Harness meter is separate.' },
-  ru: { label: 'Контекст Codex', estimate: 'оценка', sample: 'последний запрос + оценка прироста', unknown: 'нет данных', details: 'Приблизительно занятый контекст, не billing и не квота ChatGPT. Скрытые затраты провайдера/изображений и текущий незавершённый ответ могут не учитываться. Штатный индикатор Harness отдельный.' },
-  zh: { label: 'Codex 上下文', estimate: '估算', sample: '最近请求 + 估算增量', unknown: '暂无数据', details: '估算的上下文占用，不是计费用量或 ChatGPT 配额。可能不包括隐藏的图片/提供方开销及正在生成的输出。Harness 原生指示器保持独立。' },
+export const contextDictionaries = {
+  en: { label: 'Codex context', estimate: 'estimate', sample: 'last request + estimated growth', unknown: 'not available', details: 'Approximate occupied context, not billing or ChatGPT quota. Hidden image/provider overhead and in-flight output may be missing.' },
+  ru: { label: 'Контекст Codex', estimate: 'оценка', sample: 'последний запрос + оценка прироста', unknown: 'нет данных', details: 'Приблизительно занятый контекст, не billing и не квота ChatGPT. Скрытые затраты провайдера/изображений и текущий незавершённый ответ могут не учитываться.' },
+  zh: { label: 'Codex 上下文', estimate: '估算', sample: '最近请求 + 估算增量', unknown: '暂无数据', details: '估算的上下文占用，不是计费用量或 ChatGPT 配额。可能不包括隐藏的图片/提供方开销及正在生成的输出。' },
 }
 export function contextForRoute(view: CodexContextView | null | undefined, route: { provider: string; model: string } | null | undefined): CodexContextView | null {
   return route?.provider === 'openai-codex' && view?.provider === route.provider && view.model === route.model ? view : null
@@ -40,6 +40,6 @@ export function CodexContextIndicator({ t, useProjection }: { t: TranslateNS<typ
 }
 export function applyContextIndicator(ctx: Context): void {
   const locale = (ctx as unknown as { locale: { register(ns: string, lang: string, dict: Record<string, string>): () => void } }).locale
-  for (const [lang, dict] of Object.entries(dictionaries)) ctx.effect(() => locale.register(NS, lang, dict), 'codex-context.locale.' + lang)
-  ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({ name: 'conversation.composer.dock', id: 'codex-context-indicator', order: 1, locale: NS }, CodexContextIndicator))
+  for (const [lang, dict] of Object.entries(contextDictionaries)) ctx.effect(() => locale.register(NS, lang, dict), 'codex-context.locale.' + lang)
+  // Context is rendered inside the Codex limits panel, not as a second dock item.
 }

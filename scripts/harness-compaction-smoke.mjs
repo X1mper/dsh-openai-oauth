@@ -91,6 +91,8 @@ const {apply:applyPolicy}=await import(pathToFileURL(`${root}/lib/context-policy
 applyPolicy(ctx)
 const agedAgent={...agent,session:aged,ctx}
 const next=async()=>({kind:'continue'})
+// The route is captured by the real prompt-assembly hook before pre-step.
+await ctx.waterfall('system-prompt/assemble', {variables:{}}, {agent:agedAgent}, async()=>({variables:{provider:'openai-codex',model:'fixture'}}))
 await ctx.waterfall('agent/pre-step',{agent:agedAgent,turn:1,signal},next)
 await ctx.waterfall('agent/pre-step',{agent:agedAgent,turn:1,signal},next)
 assert.equal(aged.snapshotEvents().filter(e=>e.type==='compaction/summary').length,1)
