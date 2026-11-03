@@ -62,7 +62,7 @@ Harness history is authoritative. After restart/HMR the adapter resumes a comple
 
 Inputs above 200,000 UTF-16 characters are reduced through isolated, tool-free summaries of every older fragment (120,000 characters per chunk), with the latest 60,000 characters retained verbatim. Reduction may be hierarchical. This is explicitly labelled semantic recovery, not lossless replay; the durable Harness log remains unchanged. Empty/oversized summaries and cancellation fail explicitly instead of silently truncating. Codex validates the sum of input text parts, so array splitting alone cannot bypass its limit. Internal summaries consume real tokens, included in usage, and can take time; a restart can require summarizing again. Failed sends and cancelled turns invalidate adapter state before retry; temporary threads are released. Model/system/tool changes during a tool pause rebuild from canonical history rather than resuming an incompatible turn.
 
-New text instructions, including agent inbox messages, are delivered with `turn/steer` before pending tool results are returned. They keep the existing thread and do not re-summarize old history. A rejected steer fails explicitly; actual history replacement still rebuilds. Retryable Codex errors wait for Codex to finish its own retry. Changed canonical assistant output is checked against previously emitted output. Process-death queues reject both existing and future reads and discard stale tool events; non-timeout transport failures are not treated as successful tool boundaries.
+New text instructions, including agent inbox messages, are delivered with `turn/steer` before pending tool results are returned. They keep the existing thread and do not re-summarize old history. A rejected steer fails explicitly; actual history replacement still rebuilds. Retryable Codex errors wait for Codex to finish its own retry. Terminal structured `serverOverloaded` / `internalServerError` failures use Harness's `SERVER` code, so the standard `dsh-llm-retry` plugin can retry the failed model step (default: five retries with cancellable exponential backoff, no model switch). This does not replay completed tools or rearm a stopped goal. Permanent/unknown errors and exhausted retries still end the turn; an active goal may then require an explicit resume. Each retry is another billed model request. Changed canonical assistant output is checked against previously emitted output. Process-death queues reject both existing and future reads and discard stale tool events; non-timeout transport failures are not treated as successful tool boundaries.
 
 Opt-in live check using your existing ChatGPT login:
 
@@ -129,6 +129,7 @@ Remove `dsh-openai-oauth` from that profile's bundle list if the entry remains, 
 ```sh
 npm install --legacy-peer-deps
 npm run build
+npm test
 npm pack --dry-run
 ```
 

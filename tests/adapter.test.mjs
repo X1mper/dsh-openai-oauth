@@ -196,6 +196,41 @@ test('emits no fabricated usage for a server without token notifications', async
   assert.equal(chunks.some(c => c.type === 'usage'), false)
 })
 
+for (const terminal of ['error', 'failed']) test(`capacity failure through ${terminal} preserves billing and reports SERVER`, async () => {
+  const server = new FakeServer()
+  const failure = { message: 'Selected model is at capacity. Please try a different model.', codexErrorInfo: 'serverOverloaded' }
+  let starts = 0
+  const threads = [], released = []
+  server.startThread = async () => { const id = `thread-${threads.length + 1}`; threads.push(id); return id }
+  server.releaseThread = async id => { released.push(id) }
+  server.startTurn = async (_thread, input) => {
+    starts++
+    server.turnInput = input.input[0].text
+    if (starts > 1) {
+      server.events.push({ method: 'item/agentMessage/delta', params: { itemId: 'answer', delta: 'ok' } },
+        { method: 'item/completed', params: { item: { id: 'answer', type: 'agentMessage' } } },
+        { method: 'turn/completed', params: { turn: { id: 'turn-2', status: 'completed' } } })
+      return 'turn-2'
+    }
+    server.events.push(usageEvent(10, 2, 5, 1), terminal === 'error'
+      ? { method: 'error', params: { error: failure, willRetry: false } }
+      : { method: 'turn/completed', params: { turn: { id: 'turn-1', status: 'failed', error: failure } } })
+    return 'turn-1'
+  }
+  const chunks = []
+  const adapter = new CodexAppServerAdapter(server)
+  const messages = [{ role: 'user', content: [{ type: 'text', text: 'canonical context' }] }]
+  await assert.rejects(async () => { for await (const chunk of adapter.stream({ ...base, messages })) chunks.push(chunk) },
+    e => e.code === 'SERVER' && e.message === failure.message)
+  assert.equal(starts, 1)
+  assert.equal(chunks.find(c => c.type === 'usage').usage.totalTokens, 15)
+  assert.equal(chunks.find(c => c.type === 'usage').usage.contextUsage, null)
+  await Array.fromAsync(adapter.stream({ ...base, messages }))
+  assert.deepEqual(threads, ['thread-1', 'thread-2'])
+  assert.deepEqual(released, ['thread-1'])
+  assert.match(server.turnInput, /canonical context/)
+})
+
 test('preserves observed usage before surfacing a failed turn', async () => {
   const server = new FakeServer()
   server.startTurn = async () => {
