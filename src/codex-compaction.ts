@@ -8,12 +8,24 @@ import type { CompactionTrigger, CompactionResult } from '@deepseek-ai/dsh-compa
 import { estimateContextPressure } from './context-pressure.js'
 import { budgets, policyFor, selectRange } from './pressure-policy.js'
 
+import Schema from '@deepseek-ai/schemastery'
+
+export type CodexCompactionConfig = BasicCompactionConfig & { thresholdTokens?: number }
+
 type Route = { provider: string; model: string }
 /** Codex pressure backend for the stock installModelSelection composition. */
 export class CodexCompactionEngine extends BasicCompactionEngine {
   private readonly assembledRoutes = new WeakMap<Agent, Route>()
-  constructor(ctx: Context, config?: BasicCompactionConfig) {
-    super(ctx, config)
+  static override Config: Schema<CodexCompactionConfig> = Schema.object({
+    ...BasicCompactionEngine.Config.dict,
+    thresholdTokens: Schema.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER),
+  })
+  private readonly thresholdTokens?: number
+  constructor(ctx: Context, config: CodexCompactionConfig = {}) {
+    const { thresholdTokens, ...basicConfig } = config
+    if (thresholdTokens !== undefined && (!Number.isSafeInteger(thresholdTokens) || thresholdTokens <= 0)) throw new Error('thresholdTokens must be a positive safe integer')
+    super(ctx, basicConfig)
+    this.thresholdTokens = thresholdTokens
     ctx.on('system-prompt/assemble', async (_assembly, context, next) => {
       if (context.agent) this.assembledRoutes.delete(context.agent)
       const assembly = await next()
@@ -42,7 +54,7 @@ export class CodexCompactionEngine extends BasicCompactionEngine {
     if (header?.config.provider !== target.provider || header.config.model !== target.model) return null
     const policy = policyFor(this.config, target)
     const info = await this.ctx.llm.resolveModelInfo(target.provider, target.model, signal)
-    const { threshold, retain } = budgets(policy, info.context?.contextWindow ?? 0, header.config.maxTokens ?? info.defaultMaxTokens ?? 0)
+    const { threshold, retain } = budgets({ ...policy, thresholdTokens: this.thresholdTokens }, info.context?.contextWindow ?? 0, header.config.maxTokens ?? info.defaultMaxTokens ?? 0)
     const meter = this.ctx.tokenMeter
     let measurement = meter.measure(agent.session)
     const initial = estimateContextPressure(agent.session, measurement).totalTokens

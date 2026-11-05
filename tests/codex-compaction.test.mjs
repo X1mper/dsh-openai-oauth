@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { Context } from '@deepseek-ai/cordis'
 import { CodexCompactionEngine } from '../lib/codex-compaction.js'
 
-function fixture({occupancy=100, surface=900, aggregate=99000, afterSurface=200}={}) {
+function fixture({occupancy=100, surface=900, aggregate=99000, afterSurface=200, thresholdTokens}={}) {
  const ctx=new Context()
  ctx.provide('tokenMeter');ctx.provide('llm')
  const header={config:{provider:'openai-codex',model:'test',maxTokens:0},tools:[]}
@@ -16,7 +16,7 @@ function fixture({occupancy=100, surface=900, aggregate=99000, afterSurface=200}
  let measurements=0,regions=0
  ctx.set('tokenMeter',{measure(){measurements++;return {totalTokens:aggregate,surfaceTokens:surface,nodes:session.surface.nodes.map(seq=>({seq,tokens:surface/session.surface.nodes.length}))}}})
  ctx.set('llm',{resolveModelInfo:async()=>({context:{contextWindow:1000},defaultMaxTokens:0})})
- const backend=new CodexCompactionEngine(ctx,{auto:true,maxTokens:100,headroomTokens:0,thresholdRatio:0.8,retainTokens:100})
+ const backend=new CodexCompactionEngine(ctx,{auto:true,maxTokens:100,headroomTokens:0,thresholdRatio:0.8,retainTokens:100,thresholdTokens})
  const agent={session,ctx,options:{}}
  backend.compactRegion=async()=>{
   regions++
@@ -62,6 +62,27 @@ test('switch away from Codex restores stock aggregate-pressure behavior',async()
  h.header.config.provider='other'
  assert.equal(await h.backend.compactIfNeeded(h.agent,'pressure',new AbortController().signal),null)
  assert.equal(h.counts().regions,0)
+})
+test('absolute cap triggers below original threshold and skips below cap',async()=>{
+  for (const [occupancy, expected] of [[550,1],[300,0]]) {
+    const h=fixture({occupancy,surface:occupancy,thresholdTokens:500})
+    await h.assemble()
+    await h.backend.compactIfNeeded(h.agent,'pressure',new AbortController().signal)
+    assert.equal(h.counts().regions,expected)
+  }
+})
+test('same pressure below original threshold does not compact without cap',async()=>{
+  const h=fixture({occupancy:550,surface:550})
+  await h.assemble()
+  assert.equal(await h.backend.compactIfNeeded(h.agent,'pressure',new AbortController().signal),null)
+  assert.equal(h.counts().regions,0)
+})
+test('absolute cap does not change non-Codex pressure threshold',async()=>{
+  const h=fixture({occupancy:600,surface:600,aggregate:600,thresholdTokens:500})
+  h.header.config.provider='other'
+  await h.assemble('other')
+  assert.equal(await h.backend.compactIfNeeded(h.agent,'pressure',new AbortController().signal),null)
+  assert.equal(h.counts().regions,0)
 })
 test('cancellation prevents Codex pressure work',async()=>{
  const h=fixture({occupancy:900});await h.assemble()

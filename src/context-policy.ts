@@ -2,7 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 
 export const name = 'codex-context-policy'
-export const inject = ['agents', 'tokenMeter']
+export const inject = ['agents', 'tokenMeter', 'compaction']
 export const Config = z.object({
   idleMinutes: z.number().min(0).max(525600).default(30).volatile().description('Compact after this many idle minutes. 0 disables idle compaction.'),
   minHistoryTokens: z.number().step(1).min(1).default(16000).volatile().description('Skip small histories below this estimated token count.'),
@@ -15,10 +15,11 @@ interface PolicySession {
   requestHeader(): { config: { provider?: string; model?: string } } | undefined
 }
 interface Compaction { compactIfNeeded(agent: PolicyAgent, trigger: 'context-overflow', signal: AbortSignal): Promise<unknown> }
-interface PolicyAgent { session: PolicySession; options: { provider?: string }; ctx: { get(name: 'compaction'): Compaction | undefined } }
+interface PolicyAgent { session: PolicySession; options: { provider?: string } }
 interface PromptAssembly { variables: Record<string, string | undefined> }
 interface PolicyContext {
   tokenMeter: { measure(session: PolicySession): { surfaceTokens: number } }
+  compaction: Compaction
   logger: { warn(message: string): void }
   on(event: 'system-prompt/assemble', handler: (assembly: PromptAssembly, context: { agent?: PolicyAgent }, next: () => Promise<PromptAssembly>) => Promise<PromptAssembly>, options: { prepend: true }): void
   on(event: 'agent/pre-step', handler: (payload: { agent: PolicyAgent; turn: number; signal: AbortSignal }, next: () => Promise<unknown>) => Promise<unknown>): void
@@ -66,13 +67,11 @@ export function apply(ctx: Context, config: LiveConfig = {}): void {
     if (!route?.model || route.provider !== 'openai-codex' || durable?.provider !== route.provider || durable.model !== route.model) return next()
     if (!idleHistory(agent.session, Date.now(), idleMinutes)) return next()
     if (services.tokenMeter.measure(agent.session).surfaceTokens < minHistoryTokens) return next()
-    const compaction = agent.ctx.get('compaction')
-    if (!compaction) return next()
     handled.set(agent.session, turn)
     try {
       // Use the host's balanced, transactional compaction path and installed summarizer.
       // The overflow trigger forces a reduction without requiring pressure above capacity.
-      await compaction.compactIfNeeded(agent, 'context-overflow', signal)
+      await services.compaction.compactIfNeeded(agent, 'context-overflow', signal)
     } catch (error) {
       if (signal.aborted) throw error
       services.logger.warn(`Codex idle compaction failed; continuing with canonical history: ${error instanceof Error ? error.message : String(error)}`)

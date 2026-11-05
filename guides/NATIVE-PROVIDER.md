@@ -20,8 +20,30 @@ plugin controls. The bundle contains independently managed entries:
 
 Search can be disabled without disabling the model provider or page reading.
 The shared runtime is a dependency of the Codex-backed services; disabling it
-also makes its dependents unavailable. Context policy requires the native agent
-and token meter services, and uses the active agent's compaction backend.
+also makes its dependents unavailable. Context policy requires the native agent,
+token meter, and compaction services. It uses the compaction service visible in
+its own plugin scope. If the backend is isolated, disable the bundled root policy
+and configure exactly one policy instance inside the backend's isolated group;
+that group must also see the agent and token meter services. Restart Harness after
+changing the plugin layout. A policy without a visible backend will not activate.
+
+For an isolated backend, disable the root bundle entry in the profile overlay:
+
+```yaml
+- id: codex-context-policy
+  disabled: true
+```
+
+Add the following entry to the existing compaction group's `config` list (preserve
+its other entries and isolation settings):
+
+```yaml
+- id: codex-context-policy-scoped
+  name: dsh-openai-oauth/context
+```
+
+Do not add a second compaction engine. Keep any custom idle policy settings on
+this scoped policy entry.
 
 ## History belongs to Harness
 
@@ -52,10 +74,10 @@ The native settings form saves live values through Harness's configuration forms
 
 The check runs before continuing a conversation, not as a background timer.
 It only applies to `openai-codex`, checks the last completed turn and calls the
-agent's compaction backend. It attempts at most once per turn. A durable summary
-prevents another idle compact after a plugin restart in that same turn. Missing
-backends and short histories are skipped. A skipped route/backend check does not
-consume the turn's single attempt: it can become eligible on a later step. Active
+configured compaction backend. It attempts at most once per turn. A durable summary
+prevents another idle compact after a plugin restart in that same turn. Short
+histories are skipped; a missing backend prevents policy activation. A skipped route
+check does not consume the turn's single attempt: it can become eligible later. Active
 work does not count as idle time. Failure preserves the canonical history;
 cancellation propagates. Normal pressure-based and manual compaction remain owned
 by Harness.

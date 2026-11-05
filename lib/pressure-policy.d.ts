@@ -30,7 +30,9 @@ export declare function policyFor(config: ResolvedConfig, target: {
     modelPolicies: readonly Readonly<import("@deepseek-ai/dsh-compaction-basic").ModelCompactPolicyConfig>[];
     auto: boolean;
 };
-export declare function budgets(policy: CompactionPolicyConfig, capacity: number, output: number): {
+export declare function budgets(policy: CompactionPolicyConfig & {
+    thresholdTokens?: number;
+}, capacity: number, output: number): {
     threshold: number;
     retain: number;
 };

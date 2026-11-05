@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { idleHistory, apply, Config } from '../lib/context-policy.js'
+import { idleHistory, apply, Config, inject } from '../lib/context-policy.js'
+import { Context } from '@deepseek-ai/cordis'
 const now=Date.now()
 function session(events){return {seq:events.length,eventAt:i=>events[i],requestHeader:()=>({config:{provider:'openai-codex',model:'model'}})}}
 const old=()=>session([{type:'turn/end',time:now-31*60000,seq:0},{type:'turn/start',time:now,seq:1}])
@@ -59,6 +60,17 @@ test('invalid settings fail activation; native schema carries defaults',()=>{
  assert.equal(Config({}).minHistoryTokens.get(),16000)
 })
 
-test('missing session-scoped backend skips without using another session engine',async()=>{const h=harness();h.agent.ctx.get=()=>undefined;await h.run();assert.equal(h.counts().calls,0)})
+test('uses the policy scope backend when agent scope cannot see isolated compaction',async()=>{
+ const root=new Context(), isolated=root.isolate('compaction');let calls=0
+ isolated.provide('compaction',{compactIfNeeded:async()=>{calls++}})
+ assert.equal(root.extend().get('compaction'),undefined)
+ assert.ok(inject.includes('compaction'))
+ const handlers=new Map(), ctx={on:(event,h)=>handlers.set(event,h),tokenMeter:{measure:()=>({surfaceTokens:20000})},compaction:isolated.get('compaction'),logger:{warn:()=>{}}}
+ apply(ctx,{})
+ const agent={session:old(),ctx:root.extend()}
+ await handlers.get('system-prompt/assemble')({}, {agent}, async()=>({variables:{provider:'openai-codex',model:'model'}}))
+ await handlers.get('agent/pre-step')({agent,turn:1,signal:new AbortController().signal},async()=>{})
+ assert.equal(calls,1)
+})
 
 test('live settings are read on the next turn without remounting',async()=>{let idle=0;const h=harness({idleMinutes:{get:()=>idle}});await h.run(1);assert.equal(h.counts().calls,0);idle=30;await h.run(2);assert.equal(h.counts().calls,1)})
