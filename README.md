@@ -7,13 +7,13 @@
 **Code, search, and create with your ChatGPT account.**<br>
 Your conversations, tools, and permissions stay in Harness.
 
-[![Release](https://img.shields.io/badge/release-v0.7.1-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.7.1) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v0.8.0-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.8.0) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
 
 **English** · [Русский](README.ru.md) · [简体中文](README.zh-CN.md)
 
-[Quick start](#start) · [Web & images](#tools) · [Technical guide](guides/REFERENCE.md) · [Release notes](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.7.1)
+[Quick start](#start) · [Web & images](#tools) · [Technical guide](guides/REFERENCE.md) · [Release notes](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.8.0)
 
-**0.7.1 hotfix:** terminal Codex capacity/server errors now enter Harness's bounded retry policy instead of bypassing it. Restart Harness after upgrading; previously stopped goals require explicit resume.
+**0.8.0:** Pressure compaction retains overhead across pruning and replacement, avoiding repeated compression of a checkpoint plus tiny messages. Idle compaction retries eligible steps after route skips; active turn time does not count as idle. After 30 minutes, idle is checked on the next continuation, not by a background timer. Restart Harness after upgrading.
 
 **0.7.0 unifies quota and context in one Codex button, fixes conflicting permission metadata and native MCP tool-name collisions, and disables native multi-agent v2. Harness still enforces tool permissions; no host patch is required.** See the [compatibility and activation guide](guides/context-usage-compat.md).
 
@@ -45,10 +45,10 @@ Your conversations, tools, and permissions stay in Harness.
 ### 1 · Install
 
 ```sh
-dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.7.1
+dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.8.0
 ```
 
-Restart Harness after installation. Prefer an archive? Grab the compiled `.tgz` from the [release page](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.7.1).
+Restart Harness after installation. Prefer an archive? Grab the compiled `.tgz` from the [release page](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.8.0).
 
 <details>
 <summary>No <code>dsh</code> command, or using headless?</summary>
@@ -56,7 +56,7 @@ Restart Harness after installation. Prefer an archive? Grab the compiled `.tgz` 
 Use your installed Harness launcher. For example:
 
 ```sh
-npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.7.1
+npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.8.0
 ```
 
 Replace `web` with `headless` for that profile. Profiles install their dependencies separately. If your installer does not register the bundle, add `dsh-openai-oauth` to the profile's existing `dsh.profile.bundles` list.

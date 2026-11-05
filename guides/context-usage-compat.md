@@ -26,7 +26,9 @@ Keep its id, scope and configuration. Keep `auto:true` (the default). Do not ins
 
 Native manual compaction and provider-confirmed overflow recovery remain unchanged. Non-Codex pressure delegates to Basic. During a model switch involving Codex, proactive work waits for the durable header to match the assembled route rather than summarize under the previous provider. This capture supports stock Harness model selection, not arbitrary late routing middleware.
 
-Pressure never re-summarizes a selected span containing only a checkpoint, even when new work is in the retained tail. New content within the selected span permits legitimate further compaction. Provider-confirmed overflow can still force native reduction.
+Pressure does not re-summarize a checkpoint plus a few tiny exchanges. The selected span must contain meaningful additional material (at least 1,024 estimated tokens and half the checkpoint size). This guard is reconstructed from the current surface, including after replay. Provider-confirmed overflow can still force native reduction.
+
+Within a pressure-compaction pass, estimated fixed overhead is preserved across the engine's own pruning/replacement rather than declaring success solely because a replacement invalidated the provider sample. The retained-history budget accounts for that overhead. These remain conservative estimates, not a guarantee of the next provider request's size; route and unrelated-history invalidation are unchanged.
 
 ## Shared tools
 

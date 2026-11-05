@@ -45,28 +45,39 @@ export class CodexCompactionEngine extends BasicCompactionEngine {
     const { threshold, retain } = budgets(policy, info.context?.contextWindow ?? 0, header.config.maxTokens ?? info.defaultMaxTokens ?? 0)
     const meter = this.ctx.tokenMeter
     let measurement = meter.measure(agent.session)
-    if (estimateContextPressure(agent.session, measurement).totalTokens < threshold) return null
+    const initial = estimateContextPressure(agent.session, measurement).totalTokens
+    if (initial < threshold) return null
+    // Capture before our pruner invalidates the sample. Local to this invocation.
+    let correction = Math.max(0, initial - measurement.surfaceTokens)
     this.ctx.get('toolResultPruner')?.pruneSession(agent.session)
     let result: CompactionResult | null = null
     for (let attempt = 0; attempt <= policy.compactionRetries; attempt++) {
       signal.throwIfAborted()
       measurement = meter.measure(agent.session)
-      const before = estimateContextPressure(agent.session, measurement).totalTokens
+      const before = Math.max(estimateContextPressure(agent.session, measurement).totalTokens, measurement.surfaceTokens + correction)
       if (before < threshold) return result
-      const range = selectRange(agent.session, measurement.nodes, retain)
+      const fixed = Math.max(0, before - measurement.surfaceTokens)
+      const range = selectRange(agent.session, measurement.nodes, Math.max(0, retain - fixed))
       if (!range) return result
       // Both public boundaries must be balanced, including inherited histories.
       const start = measurement.nodes.find(node => node.seq === range.start)!.seq
       const end = measurement.nodes.find(node => node.seq === range.end)!.seq
       if (!toolPairingBalancedBefore(agent.session, start) || !toolPairingBalancedAfter(agent.session, end)) return result
       const candidate = agent.session.eventAt(start)
-      if (start === end && candidate?.type === 'user/message' && candidate.data.source && isCompactCheckpointSource(candidate.data.source)) {
-        // New retained-tail events are not new content in this selected span.
-        // Only provider-confirmed overflow may force another checkpoint reduction.
-        return result
+      if (candidate?.type === 'user/message' && candidate.data.source && isCompactCheckpointSource(candidate.data.source)) {
+        const checkpoint = measurement.nodes.find(node => node.seq === start)!.tokens
+        const startIndex = measurement.nodes.findIndex(node => node.seq === start)
+        const endIndex = measurement.nodes.findIndex(node => node.seq === end)
+        // Replacement checkpoints have newer sequence IDs than their retained tail.
+        const fresh = measurement.nodes.slice(startIndex + 1, endIndex + 1).reduce((sum, node) => sum + node.tokens, 0)
+        // A checkpoint plus a few small tool exchanges is not a useful new span.
+        // This survives replay and fresh provider samples; native overflow bypasses it.
+        if (fresh < Math.max(1024, checkpoint / 2)) return result
       }
       result = await this.compactRegion(start, end, agent, signal)
-      const after = estimateContextPressure(agent.session, meter.measure(agent.session)).totalTokens
+      // Only this successful, owned replacement may retain the measured overhead.
+      correction = fixed
+      const after = Math.max(estimateContextPressure(agent.session, meter.measure(agent.session)).totalTokens, meter.measure(agent.session).surfaceTokens + correction)
       if (after < threshold) return result
       // Compare like-for-like surface estimates, not the provider sample with
       // the necessarily heuristic estimate after structural replacement.

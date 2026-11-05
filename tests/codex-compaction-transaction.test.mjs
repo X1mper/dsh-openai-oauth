@@ -7,27 +7,27 @@ import { TokenMeter } from '@deepseek-ai/dsh-token-meter'
 import { createUserMessage, createAssistantMessage } from '@deepseek-ai/dsh-llm/message'
 import { CodexCompactionEngine } from '../lib/codex-compaction.js'
 
-async function fixture({failure=false}={}) {
+async function fixture({failure=false, capacity=10000, history=4000, summary='Preserved user requirements and pending task.', retain=500, retries=3}={}) {
  const ctx=new Context()
  ctx.provide('logger');ctx.set('logger',{info(){},warn(){}})
  ctx.provide('sessionProjections')
  ctx.set('sessionProjections',{register(){}})
  ctx.provide('llm')
- ctx.set('llm',{resolveModelInfo:async()=>({context:{contextWindow:10000},defaultMaxTokens:100}),imageRequestPricing(){}})
+ ctx.set('llm',{resolveModelInfo:async()=>({context:{contextWindow:capacity},defaultMaxTokens:100}),imageRequestPricing(){}})
  const meter=new TokenMeter(ctx)
  let calls=0
  class Backend extends CodexCompactionEngine {
   async summarize() {
    calls++
    if(failure) throw new Error('summary failed')
-   return {summary:'Preserved user requirements and pending task.',provider:'openai-codex',model:'test',usage:{inputTokens:100,outputTokens:10,totalTokens:110}}
+   return {summary,provider:'openai-codex',model:'test',usage:{inputTokens:100,outputTokens:10,totalTokens:110}}
   }
  }
- const backend=new Backend(ctx,{auto:true,thresholdRatio:0.8,headroomTokens:100,maxTokens:100,retainTokens:500})
+ const backend=new Backend(ctx,{auto:true,thresholdRatio:0.8,headroomTokens:100,maxTokens:100,retainTokens:retain,compactionRetries:retries})
  const session=Session.create('transaction-test')
  session.append('turn/start',{turn:1})
  session.append('request/header',{header:{config:{provider:'openai-codex',model:'test',maxTokens:100}},reason:'initial'})
- for(let i=0;i<3;i++)session.append('user/message',createUserMessage({content:[{type:'text',text:'history '.repeat(4000)}],source:{kind:'user'}}),{surfaceOp:'append'})
+ for(let i=0;i<3;i++)session.append('user/message',createUserMessage({content:[{type:'text',text:'history '.repeat(history)}],source:{kind:'user'}}),{surfaceOp:'append'})
  const agent={ctx,session,options:{}}
  const selection={current:{provider:'openai-codex',model:'test'},assembled:undefined}
  installModelSelection(ctx,selection)
@@ -38,6 +38,59 @@ async function fixture({failure=false}={}) {
  await assemble()
  return {backend,agent,meter,selection,assemble,calls:()=>calls,events:()=>Array.from({length:session.seq},(_,i)=>session.eventAt(i))}
 }
+test('large fixed occupancy selects useful history and does not recycle checkpoint with tiny exchanges',async()=>{
+ const h=await fixture({capacity:240000,history:4000,summary:'checkpoint '.repeat(400),retain:30000})
+ const sample=(input)=>{
+  h.agent.session.append('step/start',{turn:1,step:1})
+  h.agent.session.append('assistant/message',{turn:1,step:1,stream:[],message:createAssistantMessage({source:{provider:'openai-codex',model:'test'},content:[{type:'text',text:'Tool completed.'}]}),usage:{inputTokens:input,outputTokens:10,totalTokens:input+10,contextUsage:{inputTokens:input,outputTokens:10,resetsOnHistoryChange:true}}},{surfaceOp:'append'})
+  h.agent.session.append('step/end',{turn:1,step:1})
+ }
+ sample(195020)
+ h.agent.ctx.provide('toolResultPruner')
+ h.agent.ctx.set('toolResultPruner',{pruneSession(session){
+  // Simulate the structural invalidation performed by the optional pruner.
+  session.append('test/offload',{})
+ }})
+ assert.ok(h.meter.measure(h.agent.session).surfaceTokens<30000)
+ assert.ok(await h.backend.compactIfNeeded(h.agent,'pressure',new AbortController().signal))
+ assert.equal(h.calls(),1)
+ // Repeated short exchanges and new high provider samples must not re-summarize.
+ for(let i=0;i<3;i++){
+  h.agent.session.append('user/message',createUserMessage({content:[{type:'text',text:'tool result: done'}],source:{kind:'user'}}),{surfaceOp:'append'})
+  sample(196579+i*100)
+  assert.equal(await h.backend.compactIfNeeded(h.agent,'pressure',new AbortController().signal),null)
+ }
+ assert.equal(h.calls(),1)
+ h.agent.session=Session.create('pressure-replay',JSON.parse(JSON.stringify(h.events())))
+ await h.assemble()
+ assert.equal(await h.backend.compactIfNeeded(h.agent,'pressure',new AbortController().signal),null)
+ assert.equal(h.calls(),1)
+})
+test('successful replacement does not mistake heuristic fallback for calibrated relief',async()=>{
+ const h=await fixture({capacity:240000,retain:30000,retries:0})
+ const session=h.agent.session
+ session.append('step/start',{turn:1,step:1})
+ session.append('assistant/message',{turn:1,step:1,stream:[],message:createAssistantMessage({source:{provider:'openai-codex',model:'test'},content:[{type:'text',text:'Done.'}]}),usage:{inputTokens:250000,outputTokens:10,totalTokens:250010,contextUsage:{inputTokens:250000,outputTokens:10,resetsOnHistoryChange:true}}},{surfaceOp:'append'})
+ session.append('step/end',{turn:1,step:1})
+ const before=h.meter.measure(session).surfaceTokens
+ await assert.rejects(h.backend.compactIfNeeded(h.agent,'pressure',new AbortController().signal),/remains above threshold/)
+ assert.equal(h.calls(),1)
+ const after=h.meter.measure(session).surfaceTokens
+ assert.ok(after<before)
+ assert.ok(after<192000)
+ assert.ok(250010-before+after>192000)
+ assert.equal(h.events().filter(e=>e.type==='compaction/summary').length,1)
+})
+test('checkpoint with older retained tail uses surface order, not sequence order',async()=>{
+ const h=await fixture()
+ await h.backend.compactIfNeeded(h.agent,'pressure',new AbortController().signal)
+ const nodes=h.meter.measure(h.agent.session).nodes
+ assert.ok(nodes[0].seq>nodes[1].seq)
+ h.agent.session.append('user/message',createUserMessage({content:[{type:'text',text:'newest retained message '.repeat(120)}],source:{kind:'user'}}),{surfaceOp:'append'})
+ // Old retained history is substantial useful material, despite its lower seq.
+ assert.ok(await h.backend.compactIfNeeded(h.agent,'pressure',new AbortController().signal))
+ assert.equal(h.calls(),2)
+})
 test('real session, meter and region transaction replace history once',async()=>{
  const h=await fixture()
  const before=h.meter.measure(h.agent.session).surfaceTokens

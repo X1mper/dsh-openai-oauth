@@ -41,6 +41,18 @@ test('idle policy skips first switched step with a different durable summarizer 
  const h=harness();h.agent.session.requestHeader=()=>({config:{provider:'other',model:'model'}})
  await h.run();assert.equal(h.counts().calls,0)
 })
+test('time spent in an active turn does not count as idle',async()=>{
+ const h=harness()
+ h.agent.session=session([{type:'turn/end',time:now-40*60000,seq:0},{type:'turn/start',time:now-35*60000,seq:1}])
+ await h.run();await h.run();assert.equal(h.counts().calls,0)
+})
+test('a skipped route can become eligible later in the same turn',async()=>{
+ const h=harness();let durable='other'
+ h.agent.session.requestHeader=()=>({config:{provider:durable,model:'model'}})
+ await h.run();assert.equal(h.counts().calls,0)
+ durable='openai-codex'
+ await h.run();await h.run();assert.deepEqual(h.counts(),{calls:1,nextCalls:3,warnings:0})
+})
 test('invalid settings fail activation; native schema carries defaults',()=>{
  for(const config of [{idleMinutes:-1},{idleMinutes:Infinity},{minHistoryTokens:0},{minHistoryTokens:1.5}])assert.throws(()=>harness(config),/Invalid/)
  assert.equal(Config({}).idleMinutes.get(),30)

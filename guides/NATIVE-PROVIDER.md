@@ -54,7 +54,9 @@ The check runs before continuing a conversation, not as a background timer.
 It only applies to `openai-codex`, checks the last completed turn and calls the
 agent's compaction backend. It attempts at most once per turn. A durable summary
 prevents another idle compact after a plugin restart in that same turn. Missing
-backends and short histories are skipped. Failure preserves the canonical history;
+backends and short histories are skipped. A skipped route/backend check does not
+consume the turn's single attempt: it can become eligible on a later step. Active
+work does not count as idle time. Failure preserves the canonical history;
 cancellation propagates. Normal pressure-based and manual compaction remain owned
 by Harness.
 

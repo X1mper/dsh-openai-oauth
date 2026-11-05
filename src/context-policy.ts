@@ -27,11 +27,13 @@ interface PolicyContext {
 /** Inspect durable activity; a restarted plugin must not repeat compaction in the same turn. */
 export function idleHistory(session: PolicySession, now: number, idleMinutes: number): boolean {
   if (idleMinutes === 0) return false
+  let boundary = now
   for (let seq = session.seq - 1; seq >= 0; seq--) {
     const event = session.eventAt(seq)
     if (!event) continue
     if (event.type === 'compaction/summary') return false
-    if (event.type === 'turn/end') return Number.isFinite(event.time) && now - event.time >= idleMinutes * 60_000
+    if (event.type === 'turn/start') boundary = event.time
+    if (event.type === 'turn/end') return Number.isFinite(boundary) && Number.isFinite(event.time) && boundary - event.time >= idleMinutes * 60_000
   }
   return false
 }
@@ -58,7 +60,6 @@ export function apply(ctx: Context, config: LiveConfig = {}): void {
   }, { prepend: true })
   services.on('agent/pre-step', async ({ agent, turn, signal }, next) => {
     if (signal.aborted || handled.get(agent.session) === turn) return next()
-    handled.set(agent.session, turn)
     const { idleMinutes, minHistoryTokens } = values(config)
     const route = models.get(agent)
     const durable = agent.session.requestHeader()?.config
@@ -67,6 +68,7 @@ export function apply(ctx: Context, config: LiveConfig = {}): void {
     if (services.tokenMeter.measure(agent.session).surfaceTokens < minHistoryTokens) return next()
     const compaction = agent.ctx.get('compaction')
     if (!compaction) return next()
+    handled.set(agent.session, turn)
     try {
       // Use the host's balanced, transactional compaction path and installed summarizer.
       // The overflow trigger forces a reduction without requiring pressure above capacity.
