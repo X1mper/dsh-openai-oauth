@@ -11,7 +11,9 @@ test('absolute cap preserves safety and default budgets', () => {
  assert.throws(()=>budgets({...p,thresholdTokens:100},1000,0))
 })
 test('schema and constructor accept cap without leaking it to Basic', () => {
+ assert.equal(CodexCompactionEngine.Config.dict.thresholdTokens.meta.volatile,true)
  const config=CodexCompactionEngine.Config({auto:false,thresholdTokens:200000})
+ assert.equal(config.thresholdTokens.get(),200000)
  const engine=new CodexCompactionEngine(new Context(),config)
  assert.equal(engine.config.thresholdTokens,undefined)
  for(const cap of [0,-1,1.5,Infinity,Number.MAX_SAFE_INTEGER+1]) {

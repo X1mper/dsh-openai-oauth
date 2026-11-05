@@ -10,20 +10,27 @@ import { budgets, policyFor, selectRange } from './pressure-policy.js'
 
 import Schema from '@deepseek-ai/schemastery'
 
-export type CodexCompactionConfig = BasicCompactionConfig & { thresholdTokens?: number }
+type LiveThreshold = number | { get(): number | undefined }
+export type CodexCompactionConfig = BasicCompactionConfig & { thresholdTokens?: LiveThreshold }
+
+function readThreshold(value: LiveThreshold | undefined): number | undefined {
+  const threshold = typeof value === 'object' ? value.get() : value
+  if (threshold !== undefined && (!Number.isSafeInteger(threshold) || threshold <= 0)) throw new Error('thresholdTokens must be a positive safe integer')
+  return threshold
+}
 
 type Route = { provider: string; model: string }
 /** Codex pressure backend for the stock installModelSelection composition. */
 export class CodexCompactionEngine extends BasicCompactionEngine {
   private readonly assembledRoutes = new WeakMap<Agent, Route>()
-  static override Config: Schema<CodexCompactionConfig> = Schema.object({
+  static override Config: Schema<BasicCompactionConfig & { thresholdTokens?: number }, CodexCompactionConfig> = Schema.object({
     ...BasicCompactionEngine.Config.dict,
-    thresholdTokens: Schema.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER),
-  })
-  private readonly thresholdTokens?: number
+    thresholdTokens: Schema.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).volatile().description('Codex pressure compaction token cap'),
+  }) as unknown as Schema<BasicCompactionConfig & { thresholdTokens?: number }, CodexCompactionConfig>
+  private readonly thresholdTokens?: LiveThreshold
   constructor(ctx: Context, config: CodexCompactionConfig = {}) {
     const { thresholdTokens, ...basicConfig } = config
-    if (thresholdTokens !== undefined && (!Number.isSafeInteger(thresholdTokens) || thresholdTokens <= 0)) throw new Error('thresholdTokens must be a positive safe integer')
+    readThreshold(thresholdTokens)
     super(ctx, basicConfig)
     this.thresholdTokens = thresholdTokens
     ctx.on('system-prompt/assemble', async (_assembly, context, next) => {
@@ -54,7 +61,7 @@ export class CodexCompactionEngine extends BasicCompactionEngine {
     if (header?.config.provider !== target.provider || header.config.model !== target.model) return null
     const policy = policyFor(this.config, target)
     const info = await this.ctx.llm.resolveModelInfo(target.provider, target.model, signal)
-    const { threshold, retain } = budgets({ ...policy, thresholdTokens: this.thresholdTokens }, info.context?.contextWindow ?? 0, header.config.maxTokens ?? info.defaultMaxTokens ?? 0)
+    const { threshold, retain } = budgets({ ...policy, thresholdTokens: readThreshold(this.thresholdTokens) }, info.context?.contextWindow ?? 0, header.config.maxTokens ?? info.defaultMaxTokens ?? 0)
     const meter = this.ctx.tokenMeter
     let measurement = meter.measure(agent.session)
     const initial = estimateContextPressure(agent.session, measurement).totalTokens

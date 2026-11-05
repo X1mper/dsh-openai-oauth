@@ -84,6 +84,26 @@ test('absolute cap does not change non-Codex pressure threshold',async()=>{
   assert.equal(await h.backend.compactIfNeeded(h.agent,'pressure',new AbortController().signal),null)
   assert.equal(h.counts().regions,0)
 })
+test('live cap updates affect the next pressure check without rebuilding the engine', async () => {
+  let cap = 800
+  const h = fixture({occupancy:550,surface:550,thresholdTokens:{get:()=>cap}})
+  await h.assemble()
+  const signal = new AbortController().signal
+  assert.equal(await h.backend.compactIfNeeded(h.agent,'pressure',signal),null)
+  cap = undefined
+  assert.equal(await h.backend.compactIfNeeded(h.agent,'pressure',signal),null)
+  cap = 500
+  assert.ok(await h.backend.compactIfNeeded(h.agent,'pressure',signal))
+  assert.equal(h.counts().regions,1)
+})
+test('invalid live retention budget is rejected before compaction', async () => {
+  let cap = 800
+  const h = fixture({occupancy:550,surface:550,thresholdTokens:{get:()=>cap}})
+  await h.assemble()
+  cap = 100
+  await assert.rejects(h.backend.compactIfNeeded(h.agent,'pressure',new AbortController().signal), /retention budget/)
+  assert.equal(h.counts().regions,0)
+})
 test('cancellation prevents Codex pressure work',async()=>{
  const h=fixture({occupancy:900});await h.assemble()
  await assert.rejects(h.backend.compactIfNeeded(h.agent,'pressure',AbortSignal.abort()),{name:'AbortError'})

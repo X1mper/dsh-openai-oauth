@@ -3,7 +3,8 @@ import type { ContextPolicyConfig } from './context-policy.js';
 import type { ReactNode } from 'react';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { SettingsSectionOwnerProps } from '@deepseek-ai/dsh-client-ui-settings/client';
-export declare function OpenAiOAuthSection({ policy, manageComponents, language }: SettingsSectionOwnerProps & {
+export declare function OpenAiOAuthSection({ policy, contextControls, manageComponents, language }: SettingsSectionOwnerProps & {
+    contextControls?: ReactNode;
     language?: string;
     policy?: ConfigForm<ContextPolicyConfig>;
     manageComponents?: () => void;

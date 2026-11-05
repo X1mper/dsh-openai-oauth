@@ -7,11 +7,13 @@
 **Пиши код, исследуй и рисуй через свой аккаунт ChatGPT.**<br>
 Диалоги, инструменты и разрешения остаются в Harness.
 
-[![Релиз](https://img.shields.io/badge/release-v0.8.1-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.8.1) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![Лицензия](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
+[![Релиз](https://img.shields.io/badge/release-v0.8.2-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.8.2) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![Лицензия](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
 
 [English](README.md) · **Русский** · [简体中文](README.zh-CN.md)
 
-[Быстрый старт](#start) · [Веб и картинки](#tools) · [Техническая справка](guides/REFERENCE.ru.md) · [Что в релизе](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.8.1)
+[Быстрый старт](#start) · [Веб и картинки](#tools) · [Техническая справка](guides/REFERENCE.ru.md) · [Что в релизе](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.8.2)
+
+**0.8.2:** Порог компактации доступен в Settings → OpenAI · Codex → «Контекст и старые сессии». GUI находит активные экземпляры политики и backend, включая изолированные группы, вместо фиксированных ID. Сохранённый порог применяется при следующих проверках без рестарта; пустое поле/сброс возвращает значение профиля, не обязательно автоматический режим. Обновляй пакет между активными ходами, затем один раз перезапусти Harness и обнови страницу.
 
 **0.8.1:** Добавлен необязательный `thresholdTokens` для компактации Codex по давлению; исправлен доступ idle-policy к изолированному сервису компактации. Для изолированного backend перенеси policy в группу compaction и отключи корневой экземпляр: [инструкция](guides/NATIVE-PROVIDER.md). После обновления перезапусти Harness. Без настройки порога прежнее поведение сохраняется; [пример конфигурации](README.md#optional-absolute-compaction-cap).
 
@@ -47,10 +49,10 @@
 ### 1 · Установи
 
 ```sh
-dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.8.1
+dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.8.2
 ```
 
-После установки перезапусти Harness. Нужен архив? Готовый `.tgz` лежит на [странице релиза](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.8.1).
+После установки перезапусти Harness. Нужен архив? Готовый `.tgz` лежит на [странице релиза](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.8.2).
 
 <details>
 <summary>Нет команды <code>dsh</code> или нужен headless?</summary>
@@ -58,7 +60,7 @@ dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.8.1
 Используй свой launcher Harness. Например:
 
 ```sh
-npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.8.1
+npx @deepseek-ai/dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.8.2
 ```
 
 Для профиля без веб-интерфейса замени `web` на `headless`. У каждого профиля свои зависимости. Если установщик не зарегистрировал bundle автоматически, добавь `dsh-openai-oauth` в существующий список `dsh.profile.bundles` этого профиля.

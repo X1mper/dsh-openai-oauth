@@ -1,5 +1,7 @@
 import type {} from '@deepseek-ai/dsh-client-locale/client'
-import { Button, DisclosureRow, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, DisclosureRow, StateDot, SegmentedControl } from '@deepseek-ai/dsh-client-ui-primitives'
+import { hasSettingsFields, isCodexCapSchema, selectSettingsId } from './context-settings-discovery.js'
+import { CompactionSettings } from './compaction-settings.js'
 import { ContextSettings } from './context-settings.js'
 import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { ContextPolicyConfig } from './context-policy.js'
@@ -84,7 +86,7 @@ const styles: Record<string, CSSProperties> = {
   list: { margin: '10px 0 0', paddingLeft: 20, lineHeight: 1.8 },
 }
 
-export function OpenAiOAuthSection({ policy, manageComponents, language = 'en' }: SettingsSectionOwnerProps & { language?: string; policy?: ConfigForm<ContextPolicyConfig>; manageComponents?: () => void }): ReactNode {
+export function OpenAiOAuthSection({ policy, contextControls, manageComponents, language = 'en' }: SettingsSectionOwnerProps & { contextControls?: ReactNode; language?: string; policy?: ConfigForm<ContextPolicyConfig>; manageComponents?: () => void }): ReactNode {
   const ru = language.startsWith('ru')
   const copy = pageCopy(language)
   const [modelsOpen, setModelsOpen] = useState(false)
@@ -190,6 +192,7 @@ export function OpenAiOAuthSection({ policy, manageComponents, language = 'en' }
       <div style={styles.models}>
         <h3>{ru ? 'Контекст и старые сессии' : 'Context and older sessions'}</h3>
         <p style={styles.intro}>{ru ? 'Сжатие выполняет Harness: его плагины контекста продолжают управлять историей. Интервал простоя — наша политика, а не гарантированный срок кэша OpenAI.' : 'Harness performs compaction, so context plugins keep control of history. The idle interval is our policy, not a guaranteed OpenAI cache lifetime.'}</p>
+        {contextControls}
         {policy ? <ContextSettings scope={policy} ru={ru} /> : null}
       </div>
     </section>
@@ -201,13 +204,29 @@ export const inject = ['slots', 'locale', 'configForms']
 export function apply(ctx: ClientContext): void {
   applyLimits(ctx)
   applyContextIndicator(ctx)
-  const policy = ctx.configForms.get<ContextPolicyConfig>('codex-context-policy')
+  const directory = ctx.configForms.describe()
+  const subscribeDirectory = (listener: () => void) => directory.subscribe(listener)
+  const getDirectorySnapshot = () => directory.getSnapshot()
   const subscribeLocale = (listener: () => void) => ctx.locale.subscribe(listener)
   const getLocale = () => ctx.locale.getLocale().active
   const Section = (props: SettingsSectionOwnerProps) => {
     const language = useSyncExternalStore(subscribeLocale, getLocale)
+    const snapshot = useSyncExternalStore(subscribeDirectory, getDirectorySnapshot)
+    useEffect(() => { void directory.ensure() }, [])
+    const [selected, setSelected] = useState('')
+    const [backend, setBackend] = useState('')
+    const namespaces = snapshot.view?.namespaces ?? []
+    const policies = namespaces.filter(n => hasSettingsFields(n.schema, ['idleMinutes', 'minHistoryTokens']))
+    const backends = namespaces.filter(n => isCodexCapSchema(n.schema))
+    const policyId = selectSettingsId(policies, selected)
+    const backendId = selectSettingsId(backends, backend)
+    const policy = policies.some(n => n.ns === policyId) ? ctx.configForms.get<ContextPolicyConfig>(policyId!) : undefined
     const navigation = ctx.get('pluginNavigation') as { openBundle(name: string): void } | undefined
-    return <OpenAiOAuthSection {...props} language={language} policy={policy} {...(navigation ? { manageComponents: () => {
+    const ru = language.startsWith('ru')
+    const contextControls = <>{[ { items: policies, value: selected, change: setSelected, label: ru ? 'Политика простоя' : 'Idle policy' }, { items: backends, value: backend, change: setBackend, label: ru ? 'Компонент сжатия' : 'Compaction backend' } ].map(group => group.items.length > 1 ? <SegmentedControl key={group.label} id={group.label} label={group.label} value={group.value} onChange={group.change} options={[{ value: '', label: ru ? 'Выберите…' : 'Select…' }, ...group.items.map(n => ({ value: n.ns, label: n.ns }))]} /> : null)}
+    {backends.some(n => n.ns === backendId) ? <CompactionSettings key={backendId} scope={ctx.configForms.get(backendId!)} ru={language.startsWith('ru')} /> : null}
+    </>
+    return <OpenAiOAuthSection {...props} contextControls={contextControls} language={language} policy={policy} {...(navigation ? { manageComponents: () => {
       props.close()
       navigation.openBundle('dsh-openai-oauth')
     } } : {})} />
