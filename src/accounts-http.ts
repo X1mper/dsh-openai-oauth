@@ -18,7 +18,7 @@ export async function handleAccountsRequest(runtime: CodexRuntime, req: Incoming
       if (req.method === 'GET') return json(res, 200, { accounts: runtime.accounts.list() })
       if (req.method === 'POST') { const account = await runtime.accounts.create((await body(req)).name); runtime.changed(); return json(res, 201, { account }) }
     }
-    const match = /^\/api\/codex-oauth\/accounts\/([^/]+)(?:\/(login|logout|limits))?$/.exec(path)
+    const match = /^\/api\/codex-oauth\/accounts\/([^/]+)(?:\/(login(?:\/device|\/cancel)?|logout|limits))?$/.exec(path)
     if (!match) return json(res, 404, { error: 'Not found' })
     const id = match[1]!
     runtime.accounts.get(id)

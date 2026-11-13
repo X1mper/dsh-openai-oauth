@@ -97,18 +97,25 @@ function AccountSection({ account, policy, contextControls, manageComponents, la
   const [status, setStatus] = useState<Status | undefined>()
   const [busy, setBusy] = useState(false)
   const [waiting, setWaiting] = useState(false)
+  const [device, setDevice] = useState<{ loginId: string; userCode: string; verificationUrl: string }>()
+  const [copied, setCopied] = useState(false)
+  const loginId = useRef<string>()
   const [authUrl, setAuthUrl] = useState<string | undefined>()
   const [error, setError] = useState<string | undefined>()
 
   const alive = useRef(true)
   const sequence = useRef(0)
   const refreshing = useRef(false)
-  useEffect(() => { alive.current = true; return () => { alive.current = false; sequence.current++ } }, [])
+  useEffect(() => { alive.current = true; return () => {
+    alive.current = false; sequence.current++
+    const id = loginId.current; loginId.current = undefined
+    if (id) void request(accountPath(account.id, '/login/cancel'), 'POST', { loginId: id }).catch(() => {})
+  } }, [account.id])
   const refresh = useCallback(async (): Promise<Status | undefined> => {
     if (refreshing.current) return undefined
     refreshing.current = true
+    const ticket = ++sequence.current
     try {
-      const ticket = ++sequence.current
       const next = await request<Status>(accountPath(account.id))
       if (!alive.current || ticket !== sequence.current) return undefined
       setStatus(next)
@@ -116,10 +123,12 @@ function AccountSection({ account, policy, contextControls, manageComponents, la
       if (next.authenticated) {
         setWaiting(false)
         setAuthUrl(undefined)
+        setDevice(undefined)
+        loginId.current = undefined
       }
       return next
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason))
+      if (alive.current && ticket === sequence.current) setError(reason instanceof Error ? reason.message : String(reason))
       return undefined
     } finally { refreshing.current = false }
   }, [account.id])
@@ -128,7 +137,14 @@ function AccountSection({ account, policy, contextControls, manageComponents, la
   useEffect(() => {
     if (!waiting) return
     const timer = window.setInterval(() => { void refresh() }, 1200)
-    return () => { window.clearInterval(timer) }
+    const deadline = window.setTimeout(() => {
+      sequence.current++
+      setWaiting(false); setDevice(undefined); setAuthUrl(undefined)
+      setError(ru ? 'Время ожидания истекло. Начните вход заново.' : 'Login timed out. Start sign-in again.')
+      const id = loginId.current; loginId.current = undefined
+      if (id) void request(accountPath(account.id, '/login/cancel'), 'POST', { loginId: id }).catch(() => {})
+    }, 15 * 60 * 1000)
+    return () => { window.clearInterval(timer); window.clearTimeout(deadline) }
   }, [refresh, waiting])
 
   const login = async (): Promise<void> => {
@@ -137,9 +153,14 @@ function AccountSection({ account, policy, contextControls, manageComponents, la
     setBusy(true)
     setError(undefined)
     try {
-      const result = await request<{ authUrl?: string }>(accountPath(account.id, '/login'), 'POST')
-      if (!alive.current) { popup?.close(); return }
+      const result = await request<{ authUrl?: string; loginId?: string }>(accountPath(account.id, '/login'), 'POST')
+      if (!alive.current) {
+        popup?.close()
+        if (result.loginId) void request(accountPath(account.id, '/login/cancel'), 'POST', { loginId: result.loginId }).catch(() => {})
+        return
+      }
       const url = safeAuthUrl(result.authUrl)
+      loginId.current = result.loginId
       setAuthUrl(url)
       setWaiting(true)
       if (popup !== null) popup.location.href = url
@@ -149,6 +170,32 @@ function AccountSection({ account, policy, contextControls, manageComponents, la
     } finally {
       setBusy(false)
     }
+  }
+
+  const deviceLogin = async (): Promise<void> => {
+    setBusy(true); setError(undefined); setCopied(false)
+    try {
+      const result = await request<{ loginId: string; userCode: string; verificationUrl: string }>(accountPath(account.id, '/login/device'), 'POST')
+      const verificationUrl = safeAuthUrl(result.verificationUrl)
+      if (!alive.current) {
+        void request(accountPath(account.id, '/login/cancel'), 'POST', { loginId: result.loginId }).catch(() => {})
+        return
+      }
+      loginId.current = result.loginId
+      setDevice({ ...result, verificationUrl }); setWaiting(true)
+    } catch (reason) { if (alive.current) setError(reason instanceof Error ? reason.message : String(reason)) }
+    finally { if (alive.current) setBusy(false) }
+  }
+
+  const cancel = async (): Promise<void> => {
+    const id = loginId.current
+    sequence.current++
+    setBusy(true); setError(undefined)
+    try {
+      if (id) await request(accountPath(account.id, '/login/cancel'), 'POST', { loginId: id })
+      if (alive.current) { setWaiting(false); setDevice(undefined); setAuthUrl(undefined); loginId.current = undefined }
+    } catch { if (alive.current) setError(ru ? 'Не удалось отменить вход.' : 'Could not cancel sign-in.') }
+    finally { if (alive.current) setBusy(false) }
   }
 
   const logout = async (): Promise<void> => {
@@ -189,9 +236,19 @@ function AccountSection({ account, policy, contextControls, manageComponents, la
           {connected
             ? <Button variant="outline" type="button" disabled={busy} onClick={() => { void logout() }}>{copy.logout}</Button>
             : <Button variant="primary" type="button" disabled={busy || waiting} onClick={() => { void login() }}>{waiting ? copy.waiting : copy.login}</Button>}
+          {!connected ? <Button variant="outline" type="button" disabled={busy || waiting} onClick={() => { void deviceLogin() }}>{ru ? 'Войти по коду устройства' : 'Sign in with device code'}</Button> : null}
+          {waiting ? <Button variant="outline" type="button" disabled={busy} onClick={() => { void cancel() }}>{ru ? 'Отменить вход' : 'Cancel sign-in'}</Button> : null}
           <Button variant="outline" type="button" disabled={busy} onClick={() => { void refresh() }}>{copy.refresh}</Button>
         </div>
         {authUrl === undefined ? null : <p><a href={authUrl} target="_blank" rel="noreferrer">{copy.popup}</a></p>}
+        {device ? <div>
+          <p>{ru ? 'Откройте страницу и введите код:' : 'Open the verification page and enter this code:'} <strong><code>{device.userCode}</code></strong></p>
+          <a href={device.verificationUrl} target="_blank" rel="noopener noreferrer">{ru ? 'Подтвердить вход' : 'Verify sign-in'}</a>
+          {typeof navigator.clipboard?.writeText === 'function' ? <Button disabled={busy} onClick={() => {
+            void navigator.clipboard.writeText(device.userCode).then(() => { if (alive.current) setCopied(true) }).catch(() => { if (alive.current) setError(ru ? 'Не удалось скопировать код.' : 'Could not copy code.') })
+          }}>{copied ? (ru ? 'Скопировано' : 'Copied') : (ru ? 'Копировать код' : 'Copy code')}</Button> : null}
+          <span role="status" aria-live="polite">{copied ? (ru ? 'Код скопирован' : 'Code copied') : ''}</span>
+        </div> : null}
         {error === undefined ? null : <p style={styles.error} role="alert">{error}</p>}
         <div style={styles.models}>
           <Button disabled={limitsBusy} onClick={() => {

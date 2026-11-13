@@ -191,6 +191,14 @@ export class AppServer {
     })
   }
 
+  async startDeviceCodeLogin(): Promise<JsonObject> {
+    return this.request('account/login/start', { type: 'chatgptDeviceCode' })
+  }
+
+  async cancelLogin(loginId: string): Promise<JsonObject> {
+    return this.request('account/login/cancel', { loginId })
+  }
+
   async logout(): Promise<void> {
     await this.request('account/logout', {})
   }

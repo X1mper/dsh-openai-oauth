@@ -7,13 +7,15 @@
 **Пиши код, исследуй и рисуй через свой аккаунт ChatGPT.**<br>
 Диалоги, инструменты и разрешения остаются в Harness.
 
-[![Релиз](https://img.shields.io/badge/release-v0.9.0-beta.1-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.1) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![Лицензия](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
+[![Релиз](https://img.shields.io/badge/release-v0.9.0-beta.2-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.2) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![Лицензия](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
 
 [English](README.md) · **Русский** · [简体中文](README.zh-CN.md)
 
-[Быстрый старт](#start) · [Веб и картинки](#tools) · [Техническая справка](guides/REFERENCE.ru.md) · [Что в релизе](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.1)
+[Быстрый старт](#start) · [Веб и картинки](#tools) · [Техническая справка](guides/REFERENCE.ru.md) · [Что в релизе](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.2)
 
 **Бета / pre-release:** Автотесты проходят; одновременная работа двух реальных аккаунтов и поведение после рестарта ещё требуют проверки. Для стабильного использования оставайся на 0.8.2.
+
+**0.9.0-beta.2 — Вход по коду устройства:** Выбери аккаунт в Settings → OpenAI · Codex и нажми «Войти по коду устройства». Открой ссылку на любом устройстве и введи одноразовый код; браузер и callback-порт на сервере Harness не нужны. Обычный OAuth-вход сохранён. Не передавай временный код другим людям. Подтверждение проверяется только для выбранного аккаунта.
 
 **0.9.0-beta.1 — Именованные аккаунты:** В Settings → OpenAI · Codex добавь «Рабочий» и «Личный» и авторизуй каждый отдельно. В выборе модели каждой сессии выбирай **Codex · название аккаунта** — оба могут работать одновременно. ID провайдера берётся из названия: «Рабочий» → `openai-codex-rabochiy`; кириллица транслитерируется, совпадения получают числовой суффикс. При переименовании прежние маршруты сохраняются как алиасы, чтобы не ломать диалоги и конфигурации. Старый вход и маршрут `openai-codex` сохранены. У дополнительных аккаунтов отдельные каталоги Codex, процессы, потоки моделей и квоты; поиск, чтение страниц и картинки используют аккаунт исходной сессии. Автоматического переключения и обхода исчерпанной квоты нет. Управление аккаунтами использует штатную авторизацию и проверки Host/Origin Harness, включая разрешённый удалённый Web UI. Контекст и компактация поддерживают новые маршруты; нативная индикация компакта не менялась. Замер контекста проверяется на соответствие аккаунту и модели; прирост считается по фактическому порядку истории. Суммарный billing остаётся отдельной статистикой. Проверки после перезапуска или на первом шаге используют сохранённый маршрут и не обходят защиту checkpoint через штатный billing-based путь.
 
@@ -58,7 +60,7 @@
 dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.8.2
 ```
 
-После установки перезапусти Harness. Нужен архив? Готовый `.tgz` лежит на [странице релиза](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.1).
+После установки перезапусти Harness. Нужен архив? Готовый `.tgz` лежит на [странице релиза](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.2).
 
 <details>
 <summary>Нет команды <code>dsh</code> или нужен headless?</summary>

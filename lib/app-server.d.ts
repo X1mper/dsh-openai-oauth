@@ -22,6 +22,8 @@ export declare class AppServer {
     request(method: string, params: JsonObject): Promise<JsonObject>;
     account(refreshToken?: boolean): Promise<JsonObject | null>;
     startChatGptLogin(): Promise<JsonObject>;
+    startDeviceCodeLogin(): Promise<JsonObject>;
+    cancelLogin(loginId: string): Promise<JsonObject>;
     logout(): Promise<void>;
     rateLimits(): Promise<JsonObject>;
     models(): Promise<JsonObject[]>;
