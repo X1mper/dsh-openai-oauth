@@ -18,7 +18,7 @@ export declare class CodexWebSearchProvider {
     private readonly currentModel;
     private readonly record;
     readonly id = "openai-codex";
-    constructor(server: AppServer, currentModel?: () => string | undefined, record?: (event: Record<string, unknown>) => void);
+    constructor(server: AppServer | (() => AppServer), currentModel?: () => string | undefined, record?: (event: Record<string, unknown>) => void);
     available(): boolean;
     search(request: SearchRequest, signal?: AbortSignal): Promise<SearchResult>;
 }

@@ -5,6 +5,8 @@ export type ServerEvent = {
     requestId?: string | number;
 };
 export declare class AppServer {
+    private readonly home;
+    constructor(home?: string);
     private child?;
     private nextId;
     private readonly pending;

@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { CodexWebSearchProvider, parseSearchResult } from '../lib/web-search.js'
+test('search pins the selected account server throughout an asynchronous call', async () => {
+  const a = new Server(), b = new Server(); let selected = a
+  a.account = async () => { selected = b; return { type: 'chatgpt' } }
+  const provider = new CodexWebSearchProvider(() => selected)
+  await provider.search({ query: 'one' })
+  assert.equal(a.threads.length, 1); assert.equal(b.threads.length, 0)
+  await provider.search({ query: 'two' })
+  assert.equal(b.threads.length, 1)
+})
 const source = { url: 'https://example.com/page', title: 'Example', snippet: 'A fact' }
 class Server {
   threads = []; turns = []; events = []; released = []; interrupted = []

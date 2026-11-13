@@ -13,7 +13,11 @@ function loopback(address: string | undefined): boolean {
   return isIP(ipv4) === 4 && ipv4.startsWith('127.')
 }
 
-function trusted(req: IncomingMessage): boolean {
+/** Native Connection admission includes configured Host/Origin and browser/API authentication. */
+export type RequestGate = (req: IncomingMessage) => 401 | 403 | undefined
+
+export function trusted(req: IncomingMessage, gate?: RequestGate): boolean {
+  if (gate !== undefined) return gate(req) === undefined
   if (!loopback(req.socket.remoteAddress)) return false
   const host = req.headers.host
   if (host === undefined) return false
@@ -37,7 +41,7 @@ function trusted(req: IncomingMessage): boolean {
   }
 }
 
-function json(res: ServerResponse, status: number, body: unknown): void {
+export function json(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
     'cache-control': 'no-store',
@@ -49,8 +53,10 @@ export async function handleOAuthRequest(
   server: Pick<AppServer, 'account' | 'models' | 'startChatGptLogin' | 'logout'> & Partial<Pick<AppServer, 'rateLimits'>>,
   req: IncomingMessage,
   res: ServerResponse,
+  gate?: RequestGate,
 ): Promise<void> {
-  if (!trusted(req)) return json(res, 403, { error: 'OAuth controls are available only from the local Harness UI.' })
+  const rejection = gate === undefined ? (trusted(req) ? undefined : 403) : gate(req)
+  if (rejection !== undefined) return json(res, rejection, { error: 'OAuth controls require an authenticated, trusted Harness UI.' })
   const path = new URL(req.url ?? '/', 'http://localhost').pathname
   try {
     if (req.method === 'GET' && path === `${PATH}/limits`) {
@@ -83,15 +89,16 @@ export async function handleOAuthRequest(
       return json(res, 200, { ok: true })
     }
     return json(res, 404, { error: 'Not found' })
-  } catch (error) {
-    return json(res, 500, { error: error instanceof Error ? error.message : String(error) })
+  } catch {
+    // RPC errors can contain provider internals; never return them to the browser.
+    return json(res, 500, { error: 'Codex account operation failed.' })
   }
 }
 
-export function oauthRoute(server: AppServer): WebRoute {
+export function oauthRoute(server: AppServer, gate: RequestGate): WebRoute {
   return {
     kind: 'prefix',
     path: PATH,
-    handler: (req, res) => handleOAuthRequest(server, req, res),
+    handler: (req, res) => handleOAuthRequest(server, req, res, gate),
   }
 }

@@ -2,11 +2,20 @@
 export interface PressureSession {
   readonly seq: number
   eventAt(seq: number): unknown
-  requestHeader(): { readonly tools?: readonly unknown[] } | undefined
+  requestHeader(): { readonly tools?: readonly unknown[]; readonly config?: { provider?: string; model?: string } } | undefined
 }
 export interface PressureMeasurement {
   readonly surfaceTokens: number
   readonly nodes: readonly { readonly seq: number; readonly tokens: number }[]
+}
+/** Occupancy is a single validated request sample, never a billing sum. */
+export function validContextSample(usage: any, interrupted: unknown, route?: { provider?: string; model?: string }, source?: { provider?: string; model?: string }): number | null {
+  const input = usage?.inputTokens, output = usage?.outputTokens
+  if (interrupted || usage?.resetsOnHistoryChange !== true ||
+      !Number.isSafeInteger(input) || input < 0 || !Number.isSafeInteger(output) || output < 0 ||
+      !Number.isSafeInteger(input + output) || input + output === 0) return null
+  if (route && (!source || source.provider !== route.provider || source.model !== route.model)) return null
+  return input + output
 }
 export interface ContextPressure { totalTokens: number; source: 'contextUsage' | 'estimated' }
 
@@ -27,9 +36,12 @@ export function estimateContextPressure(session: PressureSession, measured: Pres
     if ((event.surfaceOp !== undefined && event.surfaceOp !== 'append') || /offload|image/i.test(event.type)) return fallback()
     if (event.type === 'assistant/message') {
       const usage = event.data?.usage?.contextUsage
-      const input = usage?.inputTokens, output = usage?.outputTokens
-      if (event.data?.interrupted || usage?.resetsOnHistoryChange !== true || !Number.isSafeInteger(input) || input < 0 || !Number.isSafeInteger(output) || output < 0 || !Number.isSafeInteger(input + output) || input + output === 0 || !measured.nodes.some(node => node.seq === seq)) return fallback()
-      return { totalTokens: input + output + measured.nodes.filter(node => node.seq > seq).reduce((sum, node) => sum + node.tokens, 0), source: 'contextUsage' }
+      const sample = validContextSample(usage, event.data?.interrupted, session.requestHeader()?.config, event.data?.message?.source)
+      const anchor = measured.nodes.findIndex(node => node.seq === seq)
+      if (sample === null || anchor < 0) return fallback()
+      // Surface order is canonical: replacement checkpoints can have newer IDs
+      // than the verbatim tail that follows them.
+      return { totalTokens: sample + measured.nodes.slice(anchor + 1).reduce((sum, node) => sum + node.tokens, 0), source: 'contextUsage' }
     }
     // An attempt without a committed message may have rebuilt native history.
     // Its billed usage cannot validate the older successful occupancy sample.

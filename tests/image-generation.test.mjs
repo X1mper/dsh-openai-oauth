@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { CodexImageGenerator, resolveEditImages, applyImageTools } from '../lib/image-generation.js'
+test('image tool selects the session account rather than the default server', async () => {
+ const {server,store} = setup(), defaultServer = new Server(), tools = []
+ const provider = 'openai-codex-11111111-1111-4111-8111-111111111111'
+ applyImageTools({attachments:store,tools:{register(tool){tools.push(tool)}}}, defaultServer, route => {assert.equal(route,provider);return server})
+ await tools.find(tool => tool.name === 'image_generate').execute({prompt:'circle'}, {signal:new AbortController().signal,agent:{session:{requestContext(){return {provider,model:'test'}},deriveMessages(){return []}}}})
+ assert.equal(server.threads.length,1); assert.equal(defaultServer.threads.length,0)
+})
 const bytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==', 'base64')
 const ref = { attachmentId: 'fixture', mediaType: 'image/png', bytes: bytes.length, width: 1, height: 1 }
 class Server {

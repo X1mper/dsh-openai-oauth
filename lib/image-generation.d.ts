@@ -29,5 +29,5 @@ export declare class CodexImageGenerator {
     constructor(server: AppServer, store: Store);
     run(mode: 'generate' | 'edit', request: ImageRequest, messages: readonly Message[], model?: string, signal?: AbortSignal, record?: (event: Record<string, unknown>) => void): Promise<GeneratedImage>;
 }
-export declare function applyImageTools(ctx: Context, server: AppServer): void;
+export declare function applyImageTools(ctx: Context, server: AppServer, accountServer?: (provider?: string) => AppServer): void;
 export {};

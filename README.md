@@ -7,11 +7,17 @@
 **Code, search, and create with your ChatGPT account.**<br>
 Your conversations, tools, and permissions stay in Harness.
 
-[![Release](https://img.shields.io/badge/release-v0.8.2-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.8.2) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v0.9.0-beta.1-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.1) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
 
 **English** · [Русский](README.ru.md) · [简体中文](README.zh-CN.md)
 
-[Quick start](#start) · [Web & images](#tools) · [Technical guide](guides/REFERENCE.md) · [Release notes](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.8.2)
+[Quick start](#start) · [Web & images](#tools) · [Technical guide](guides/REFERENCE.md) · [Release notes](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.1)
+
+**Beta / pre-release:** Automated tests pass, but simultaneous real-account OAuth and post-restart production behavior still need validation. Stable users should stay on 0.8.2.
+
+**0.9.0-beta.1 — Named accounts:** In Settings → OpenAI · Codex, add accounts such as “Work” and “Personal”, name them and sign in separately. Select **Codex · account name** in each session's model picker to use both concurrently. Provider IDs use account names: “Рабочий” → `openai-codex-rabochiy`, with Cyrillic transliteration and numeric suffixes for collisions. Renaming retains earlier provider routes as aliases, preserving existing sessions and configurations. Existing credentials and the original `openai-codex` route are preserved. Each additional account has its own Codex home, process, model threads and quota; search, fetch and images follow the initiating session's account. No quota-based fallback or automatic account switching. Context/compaction supports named routes; native compaction indication is unchanged. Context occupancy validates the request's account/model and uses canonical surface order rather than sequence-number order; billing totals remain separate. First-step/replayed pressure checks use the durable route and cannot bypass Codex checkpoint protection through the stock billing-based path.
+
+Upgrade only between active turns and restart Harness once, then refresh the page. Do not remove the running provider mid-turn. Account metadata is stored in `accounts.json` under the existing Codex home; extra credentials stay under `accounts/<uuid>` and never appear in the UI/API. Removing metadata via the API preserves credentials. Back up the Codex home privately before downgrade; older versions cannot select additional account routes.
 
 **0.8.2:** Adds the compaction token cap to Settings → OpenAI · Codex → Context and older sessions. Discovers active scoped policy/backend instances instead of relying on fixed IDs. Saved cap changes apply to subsequent pressure checks without a restart; blank/reset restores the profile value, not necessarily automatic mode. Upgrade the package between active turns, restart Harness once, and refresh the page.
 
@@ -76,7 +82,7 @@ automatically clamped: a retained tail at or above that threshold is rejected.
 dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.8.2
 ```
 
-Restart Harness after installation. Prefer an archive? Grab the compiled `.tgz` from the [release page](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.8.2).
+Restart Harness after installation. Prefer an archive? Grab the compiled `.tgz` from the [release page](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.1).
 
 <details>
 <summary>No <code>dsh</code> command, or using headless?</summary>

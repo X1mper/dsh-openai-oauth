@@ -9,7 +9,7 @@ function fixture({occupancy=100, surface=900, aggregate=99000, afterSurface=200,
  const header={config:{provider:'openai-codex',model:'test',maxTokens:0},tools:[]}
  const events=[
   {seq:0,type:'user/message',surfaceOp:'append',data:{content:[]}},
-  {seq:1,type:'assistant/message',surfaceOp:'append',data:{message:{content:[]},usage:{totalTokens:aggregate,contextUsage:{inputTokens:occupancy,outputTokens:1,resetsOnHistoryChange:true}}}},
+  {seq:1,type:'assistant/message',surfaceOp:'append',data:{message:{source:header.config,content:[]},usage:{totalTokens:aggregate,contextUsage:{inputTokens:occupancy,outputTokens:1,resetsOnHistoryChange:true}}}},
   {seq:2,type:'user/message',surfaceOp:'append',data:{content:[]}}
  ]
  const session={seq:3,eventAt:i=>events[i],requestHeader:()=>header,surface:{nodes:[0,1,2],replaceGeneration:0}}
@@ -32,6 +32,30 @@ function fixture({occupancy=100, surface=900, aggregate=99000, afterSurface=200,
  }
  return {ctx,backend,agent,assemble,header,counts:()=>({measurements,regions}),events}
 }
+test('warm-up without assembled route uses occupancy, not aggregate billing',async()=>{
+ const h=fixture({occupancy:165008,surface:37854,aggregate:494487})
+ h.ctx.set('llm',{resolveModelInfo:async()=>({context:{contextWindow:240000},defaultMaxTokens:0})})
+ assert.equal(await h.backend.compactIfNeeded(h.agent,'pressure',new AbortController().signal),null)
+ assert.equal(h.counts().regions,0)
+})
+test('warm-up true pressure protects checkpoint immediately and after engine replay',async()=>{
+ const h=fixture({occupancy:900,surface:1500,afterSurface:1000})
+ assert.ok(await h.backend.compactIfNeeded(h.agent,'pressure',new AbortController().signal))
+ assert.equal(h.counts().regions,1)
+ assert.equal(await h.backend.compactIfNeeded(h.agent,'pressure',new AbortController().signal),null)
+ const replayCtx=new Context()
+ for(const service of ['tokenMeter','llm']){replayCtx.provide(service);replayCtx.set(service,h.ctx[service])}
+ const replay=new CodexCompactionEngine(replayCtx,{auto:false,maxTokens:100,headroomTokens:0,retainTokens:100})
+ replay.compactRegion=()=>{throw new Error('checkpoint must not be compacted')}
+ assert.equal(await replay.compactIfNeeded(h.agent,'pressure',new AbortController().signal),null)
+})
+test('warm-up account routes all use occupancy and preserve billed usage',async()=>{
+ for(const provider of ['openai-codex','openai-codex-01234567-89ab-4cde-8fab-0123456789ab']){
+  const h=fixture();h.header.config.provider=provider
+  assert.equal(await h.backend.compactIfNeeded(h.agent,'pressure',new AbortController().signal),null)
+  assert.equal(h.events[1].data.usage.totalTokens,99000)
+ }
+})
 test('aggregate billing cannot cause Codex pressure compaction',async()=>{
  const h=fixture();await h.assemble()
  assert.equal(await h.backend.compactIfNeeded(h.agent,'pressure',new AbortController().signal),null)

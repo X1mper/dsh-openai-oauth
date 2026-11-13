@@ -5,6 +5,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { toolPairingBalancedBefore, toolPairingBalancedAfter, isCompactCheckpointSource } from '@deepseek-ai/dsh-compaction'
 import type { CompactionTrigger, CompactionResult } from '@deepseek-ai/dsh-compaction'
+import { isCodexProvider } from './codex-route.js'
 import { estimateContextPressure } from './context-pressure.js'
 import { budgets, policyFor, selectRange } from './pressure-policy.js'
 
@@ -48,12 +49,15 @@ export class CodexCompactionEngine extends BasicCompactionEngine {
   override async compactIfNeeded(agent: Agent, trigger: CompactionTrigger, signal: AbortSignal): Promise<CompactionResult | null> {
     // Preserve native overflow bookkeeping and its actual failed-request route.
     if (trigger !== 'pressure') return super.compactIfNeeded(agent, trigger, signal)
-    const target = this.assembledRoutes.get(agent)
+    const assembled = this.assembledRoutes.get(agent)
     const header = agent.session.requestHeader()
-    // Never apply an old Codex envelope while the next route is switching.
-    if (header?.config.provider === 'openai-codex' &&
-        (!target || target.provider !== header.config.provider || target.model !== header.config.model)) return null
-    if (target?.provider !== 'openai-codex') return super.compactIfNeeded(agent, trigger, signal)
+    // Scoped assembly hooks need not have run at the first pressure check (or
+    // after replay). The durable request route is sufficient then. Never send a
+    // Codex request through the superclass's aggregate-billing pressure path.
+    const target = assembled ?? (header ? { provider: header.config.provider, model: header.config.model } : undefined)
+    if (!target || !header) return null
+    if (target.provider !== header.config.provider || target.model !== header.config.model) return null
+    if (!isCodexProvider(target.provider)) return super.compactIfNeeded(agent, trigger, signal)
     signal.throwIfAborted()
     // The public region summarizer uses the durable envelope. Do not summarize
     // under a previous model on the first step of a switch. Native overflow

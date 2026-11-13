@@ -10,6 +10,14 @@ function run(events, nodes = [{ seq: 0, tokens: 20 }]) {
 test('uses last context sample, not aggregate billing, and adds append growth', () => {
   assert.deepEqual(run([sample, { type: 'user/message', surfaceOp: 'append' }], [{ seq: 0, tokens: 20 }, { seq: 1, tokens: 50 }]), { totalTokens: 133050, source: 'contextUsage' })
 })
+test('sample from another account or model cannot price current route',()=>{
+ const session={seq:1,eventAt:()=>({...sample,data:{...sample.data,message:{source:{provider:'openai-codex',model:'old'}}}}),requestHeader:()=>({config:{provider:'openai-codex',model:'new'}})}
+ assert.equal(estimateContextPressure(session,{surfaceTokens:20,nodes:[{seq:0,tokens:20}]}).source,'estimated')
+})
+test('growth follows canonical surface order rather than sequence IDs',()=>{
+ const session={seq:6,eventAt:i=>i===5?sample:{type:'step/end'},requestHeader:()=>undefined}
+ assert.equal(estimateContextPressure(session,{surfaceTokens:80,nodes:[{seq:5,tokens:20},{seq:2,tokens:60}]}).totalTokens,133060)
+})
 test('falls back for absent or malformed sample', () => {
   assert.equal(run([]).source, 'estimated')
   assert.equal(run([{ ...sample, data: { usage: { contextUsage: { inputTokens: -1, outputTokens: 5, resetsOnHistoryChange: true } } } }]).source, 'estimated')

@@ -6,8 +6,9 @@ import vm from 'node:vm'
 import ts from 'typescript'
 const source=readFileSync(new URL('../src/context-indicator-client.tsx',import.meta.url),'utf8')
 const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText
+import * as codexRoute from '../lib/codex-route.js'
 const exports={}
-vm.runInNewContext(compiled,{exports,require:createRequire(import.meta.url)})
+vm.runInNewContext(compiled,{exports,require:name=>name==='./codex-route.js'?codexRoute:createRequire(import.meta.url)(name)})
 const route={provider:'openai-codex',model:'test'}
 const view={...route,totalTokens:2313,capacity:10000,source:'contextUsage'}
 const render=(selection,data=view)=>exports.CodexContextIndicator({t:key=>key,useProjection:key=>key==='modelSelection'?selection:data})

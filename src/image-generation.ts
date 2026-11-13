@@ -7,6 +7,7 @@ import type { AttachmentStore, ImageAttachmentRef } from '@deepseek-ai/dsh-attac
 import { isLegacyToolResult, type ReadableBlock as ContentBlock } from './legacy-content.js'
 import { LlmError } from '@deepseek-ai/dsh-llm'
 import type { Context } from '@deepseek-ai/cordis'
+import { isCodexAccountRoute } from './account-route.js'
 import { AppServer } from './app-server.js'
 import { CodexUsageTracker } from './usage.js'
 
@@ -143,7 +144,7 @@ interface ImageTool {
   isConcurrencySafe(): boolean
   execute(args: ImageRequest, exec: { signal: AbortSignal; agent?: { session: ImageSession } }): Promise<GeneratedImage>
 }
-export function applyImageTools(ctx: Context, server: AppServer): void {
+export function applyImageTools(ctx: Context, server: AppServer, accountServer?: (provider?: string) => AppServer): void {
   const services = ctx as unknown as { attachments: Store; tools: { register(tool: ImageTool): unknown } }
   const generator = new CodexImageGenerator(server, services.attachments)
   for (const mode of ['generate', 'edit'] as const) {
@@ -166,7 +167,8 @@ export function applyImageTools(ctx: Context, server: AppServer): void {
         const session = exec.agent?.session
         if (!session) throw new LlmError('Image tools require a Harness conversation', 'INVALID_REQUEST')
         const route = session.requestContext()
-        return generator.run(mode, args, session.deriveMessages(), route?.provider === 'openai-codex' ? route.model : undefined,
+        const selected = accountServer ? new CodexImageGenerator(accountServer(route?.provider), services.attachments) : generator
+        return selected.run(mode, args, session.deriveMessages(), isCodexAccountRoute(route?.provider) ? route?.model : undefined,
           exec.signal, event => { recordUsage(session, 'image', event) })
       },
     })

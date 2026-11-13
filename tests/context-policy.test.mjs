@@ -23,6 +23,14 @@ function harness(config, {tokens=20000,fail=false}={}){
 test('uses installed compaction once per turn and continues the normal pipeline',async()=>{
  const h=harness();await h.run();await h.run();assert.deepEqual(h.counts(),{calls:1,nextCalls:2,warnings:0})
 })
+test('named account idle compaction requires exact matching durable route',async()=>{
+ const h=harness()
+ const provider='openai-codex-01234567-89ab-4cde-8fab-0123456789ab'
+ h.setProvider(provider)
+ await h.run();assert.equal(h.counts().calls,0)
+ h.agent.session.requestHeader=()=>({config:{provider,model:'model'}})
+ await h.run();assert.equal(h.counts().calls,1)
+})
 test('failure cannot loop on every tool step',async()=>{
  const h=harness({}, {fail:true});await h.run();await h.run();assert.deepEqual(h.counts(),{calls:1,nextCalls:2,warnings:1})
 })

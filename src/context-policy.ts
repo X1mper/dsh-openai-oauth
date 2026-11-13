@@ -1,5 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import { isCodexProvider } from './codex-route.js'
 
 export const name = 'codex-context-policy'
 export const inject = ['agents', 'tokenMeter', 'compaction']
@@ -64,7 +65,7 @@ export function apply(ctx: Context, config: LiveConfig = {}): void {
     const { idleMinutes, minHistoryTokens } = values(config)
     const route = models.get(agent)
     const durable = agent.session.requestHeader()?.config
-    if (!route?.model || route.provider !== 'openai-codex' || durable?.provider !== route.provider || durable.model !== route.model) return next()
+    if (!route?.model || !isCodexProvider(route.provider) || durable?.provider !== route.provider || durable?.model !== route.model) return next()
     if (!idleHistory(agent.session, Date.now(), idleMinutes)) return next()
     if (services.tokenMeter.measure(agent.session).surfaceTokens < minHistoryTokens) return next()
     handled.set(agent.session, turn)

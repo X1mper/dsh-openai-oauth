@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { SessionStandardProps, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { LimitWindow } from './limits.js'
+import { accountIdForProvider, accountPath, type NamedAccount } from './account-ui.js'
 import { CodexContextIndicator, contextDictionaries } from './context-indicator-client.js'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -28,10 +29,27 @@ function windowLabel(row: LimitWindow, t: T): string {
 
 export function CodexLimits({ t, useProjection }: { t: T; useProjection: SessionStandardProps['useProjection'] }): ReactNode {
   const selection = useProjection('modelSelection')
-  return (selection?.next ?? selection?.lastUsed)?.provider === 'openai-codex' ? <CodexLimitsPolling t={t} useProjection={useProjection}/> : null
+  const provider = (selection?.next ?? selection?.lastUsed)?.provider
+  const [accounts, setAccounts] = useState<NamedAccount[]>()
+  useEffect(() => {
+    const controller = new AbortController()
+    const refresh = async (): Promise<void> => {
+      try {
+        const response = await fetch('/api/codex-oauth/accounts', { credentials: 'same-origin', signal: controller.signal })
+        if (!response.ok) throw new Error('Accounts unavailable')
+        const data = await response.json() as { accounts: NamedAccount[] }
+        if (!controller.signal.aborted && Array.isArray(data.accounts)) setAccounts(data.accounts)
+      } catch { /* Never infer a named account from a slug. */ }
+    }
+    void refresh()
+    const timer = window.setInterval(() => { void refresh() }, 30000)
+    return () => { controller.abort(); window.clearInterval(timer) }
+  }, [provider])
+  const accountId = accountIdForProvider(provider, accounts)
+  return accountId ? <CodexLimitsPolling key={accountId} accountId={accountId} provider={provider!} t={t} useProjection={useProjection}/> : null
 }
 
-function CodexLimitsPolling({ t, useProjection }: { t: T; useProjection: SessionStandardProps['useProjection'] }): ReactNode {
+function CodexLimitsPolling({ t, useProjection, accountId, provider }: { accountId: string; provider: string; t: T; useProjection: SessionStandardProps['useProjection'] }): ReactNode {
   const [snapshot, setSnapshot] = useState<{ authenticated: boolean; windows: LimitWindow[] }>()
   const [failed, setFailed] = useState(false)
   const [open, setOpen] = useState(false)
@@ -63,7 +81,7 @@ function CodexLimitsPolling({ t, useProjection }: { t: T; useProjection: Session
       busy = true
       setRefreshing(true)
       try {
-        const response = await fetch('/api/codex-oauth/limits', { credentials: 'same-origin', headers: { accept: 'application/json' }, signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) })
+        const response = await fetch('/api/codex-oauth' + accountPath(accountId, '/limits'), { credentials: 'same-origin', headers: { accept: 'application/json' }, signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) })
         if (!response.ok) throw new Error('Limits unavailable')
         const next = await response.json() as { authenticated: boolean; windows: LimitWindow[] }
         if (!Array.isArray(next.windows)) throw new Error('Invalid limits')
@@ -113,7 +131,7 @@ function CodexLimitsPolling({ t, useProjection }: { t: T; useProjection: Session
       .codex-quota-refresh:disabled{opacity:.5;cursor:wait}
     `}</style>
     <button ref={triggerRef} className="codex-quota-pill" type="button" aria-haspopup="dialog" aria-expanded={open} aria-controls={panelId} onClick={toggle} title={rows.length ? t('explanation') : status}>
-      {icon}<span>Codex</span>
+      {icon}<span title={provider}>Codex{accountId === 'default' ? '' : ' · ' + provider}</span>
       {rows.map(row => <span key={`${row.id}:${row.window}`} title={windowLabel(row, t)} style={{ color: row.usedPercent >= 90 ? 'var(--dsw-alias-state-warn-primary)' : 'inherit' }}>{percent(row.usedPercent)}%</span>)}
       <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true"><path d={open ? 'm4 10 4-4 4 4' : 'm4 6 4 4 4-4'}/></svg>
     </button>

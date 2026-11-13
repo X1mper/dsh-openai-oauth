@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { CodexWebFetchProvider } from '../lib/web-fetch.js'
+test('fetch pins account server across awaits and resolves it again for next call', async () => {
+ const a = new Server(), b = new Server(); let selected = a
+ a.account = async () => { selected = b; return {type:'chatgpt'} }
+ const provider = new CodexWebFetchProvider(() => selected)
+ await provider.fetch({url:'https://example.com/'})
+ assert.equal(a.threads.length,1); assert.equal(b.threads.length,0)
+ await provider.fetch({url:'https://example.com/'})
+ assert.equal(b.threads.length,1)
+})
 const url = 'https://example.com/'
 class Server {
   events = []; released = []; interrupted = []; threads = []

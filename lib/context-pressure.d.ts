@@ -4,6 +4,10 @@ export interface PressureSession {
     eventAt(seq: number): unknown;
     requestHeader(): {
         readonly tools?: readonly unknown[];
+        readonly config?: {
+            provider?: string;
+            model?: string;
+        };
     } | undefined;
 }
 export interface PressureMeasurement {
@@ -13,6 +17,14 @@ export interface PressureMeasurement {
         readonly tokens: number;
     }[];
 }
+/** Occupancy is a single validated request sample, never a billing sum. */
+export declare function validContextSample(usage: any, interrupted: unknown, route?: {
+    provider?: string;
+    model?: string;
+}, source?: {
+    provider?: string;
+    model?: string;
+}): number | null;
 export interface ContextPressure {
     totalTokens: number;
     source: 'contextUsage' | 'estimated';

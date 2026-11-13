@@ -3,6 +3,8 @@ import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
+import * as accountUI from '../lib/account-ui.js'
+import * as codexRoute from '../lib/codex-route.js'
 import * as contextIndicator from '../lib/context-indicator-client.js'
 import { limitWindows } from '../lib/limits.js'
 import { handleOAuthRequest } from '../lib/oauth-http.js'
@@ -33,12 +35,12 @@ test('limits endpoint exposes windows, not account data or credentials; rejects 
 test('client registers a compact quota pill with accessible localized popover details',async()=>{
  const registrations=[],dictionaries={};let stateIndex=0;const states=[]
  const rows=limitWindows({rateLimits:quota})
- const react={useEffect(){},useId(){return 'quota-panel'},useRef(initial){return {current:initial}},useState(initial){const index=stateIndex++;if(!(index in states))states[index]=index===0?{authenticated:true,windows:rows}:typeof initial==='function'?initial():initial;return [states[index],value=>{states[index]=typeof value==='function'?value(states[index]):value}]}}
+ const react={useEffect(){},useId(){return 'quota-panel'},useRef(initial){return {current:initial}},useState(initial){const index=stateIndex++;if(!(index in states))states[index]=index===1?{authenticated:true,windows:rows}:typeof initial==='function'?initial():initial;return [states[index],value=>{states[index]=typeof value==='function'?value(states[index]):value}]}}
  const source=await readFile(new URL('../src/limits-client.tsx',import.meta.url),'utf8')
  const ts=require('typescript')
  const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText
  const exported={}
- vm.runInNewContext(compiled,{exports:exported,require:name=>name==='react'?react:name==='./context-indicator-client.js'?contextIndicator:require(name),Date,Intl,window:{innerWidth:1024}})
+ vm.runInNewContext(compiled,{exports:exported,require:name=>name==='./account-ui.js'?accountUI:name==='./codex-route.js'?codexRoute:name==='react'?react:name==='./context-indicator-client.js'?contextIndicator:require(name),Date,Intl,window:{innerWidth:1024}})
  const ctx={locale:{register(ns,language,dict){dictionaries[language]=dict;return()=>{}}},effect(fn){fn()},slots:{inject(_slot,fn){fn()},register(options,Component){registrations.push({options,Component});return()=>{}}}}
  exported.applyLimits(ctx)
  const registration=registrations.find(r=>r.options.id==='codex-account-limits')
@@ -47,8 +49,8 @@ test('client registers a compact quota pill with accessible localized popover de
   const child = registration.Component({t,useProjection:()=>({next:{provider:'openai-codex'},lastUsed:null})})
   return child.type(child.props)
  }
- assert.equal(registration.Component({useProjection:()=>undefined}),null)
- assert.equal(registration.Component({useProjection:()=>({next:{provider:'other'},lastUsed:{provider:'openai-codex'}})}),null)
+ stateIndex=0; assert.equal(registration.Component({useProjection:()=>undefined}),null)
+ stateIndex=0; assert.equal(registration.Component({useProjection:()=>({next:{provider:'other'},lastUsed:{provider:'openai-codex'}})}),null)
  function elements(node){if(Array.isArray(node))return node.flatMap(elements);if(!node||typeof node!=='object')return[];return[node,...elements(node.props?.children)]}
  function text(node){if(Array.isArray(node))return node.map(text).join('');if(typeof node==='string'||typeof node==='number')return String(node);return node?.props?text(node.props.children):''}
  for(const language of ['ru','en','zh']){

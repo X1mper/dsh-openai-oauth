@@ -58,6 +58,7 @@ interface PendingRequest {
 }
 
 export class AppServer {
+  constructor(private readonly home = codexHome()) {}
   private child?: ChildProcessWithoutNullStreams
   private nextId = 1
   private readonly pending = new Map<number, PendingRequest>()
@@ -72,7 +73,7 @@ export class AppServer {
   }
 
   private async startInner(): Promise<void> {
-    const home = codexHome()
+    const home = this.home
     await mkdir(home, { recursive: true, mode: 0o700 })
     const require = createRequire(import.meta.url)
     const codex = process.env.DSH_CODEX_CLI || require.resolve('@openai/codex/bin/codex.js')

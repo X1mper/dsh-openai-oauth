@@ -7,7 +7,7 @@ import { TokenMeter } from '@deepseek-ai/dsh-token-meter'
 import { createUserMessage, createAssistantMessage } from '@deepseek-ai/dsh-llm/message'
 import { CodexCompactionEngine } from '../lib/codex-compaction.js'
 
-async function fixture({failure=false, capacity=10000, history=4000, summary='Preserved user requirements and pending task.', retain=500, retries=3}={}) {
+async function fixture({failure=false, capacity=10000, history=4000, summary='Preserved user requirements and pending task.', retain=500, retries=3, provider='openai-codex', onSummarize}={}) {
  const ctx=new Context()
  ctx.provide('logger');ctx.set('logger',{info(){},warn(){}})
  ctx.provide('sessionProjections')
@@ -19,17 +19,18 @@ async function fixture({failure=false, capacity=10000, history=4000, summary='Pr
  class Backend extends CodexCompactionEngine {
   async summarize() {
    calls++
+   onSummarize?.(session)
    if(failure) throw new Error('summary failed')
-   return {summary,provider:'openai-codex',model:'test',usage:{inputTokens:100,outputTokens:10,totalTokens:110}}
+   return {summary,provider,model:'test',usage:{inputTokens:100,outputTokens:10,totalTokens:110}}
   }
  }
  const backend=new Backend(ctx,{auto:true,thresholdRatio:0.8,headroomTokens:100,maxTokens:100,retainTokens:retain,compactionRetries:retries})
  const session=Session.create('transaction-test')
  session.append('turn/start',{turn:1})
- session.append('request/header',{header:{config:{provider:'openai-codex',model:'test',maxTokens:100}},reason:'initial'})
+ session.append('request/header',{header:{config:{provider,model:'test',maxTokens:100}},reason:'initial'})
  for(let i=0;i<3;i++)session.append('user/message',createUserMessage({content:[{type:'text',text:'history '.repeat(history)}],source:{kind:'user'}}),{surfaceOp:'append'})
  const agent={ctx,session,options:{}}
- const selection={current:{provider:'openai-codex',model:'test'},assembled:undefined}
+ const selection={current:{provider,model:'test'},assembled:undefined}
  installModelSelection(ctx,selection)
  const assemble=async()=>{
   const assembly={variables:{},sections:[],contexts:[],tools:[]}
@@ -38,6 +39,18 @@ async function fixture({failure=false, capacity=10000, history=4000, summary='Pr
  await assemble()
  return {backend,agent,meter,selection,assemble,calls:()=>calls,events:()=>Array.from({length:session.seq},(_,i)=>session.eventAt(i))}
 }
+test('named account automatic pressure keeps native lifecycle markers, including while summarizing',async()=>{
+ const provider='openai-codex-01234567-89ab-4cde-8fab-0123456789ab'
+ const h=await fixture({provider,onSummarize(session){
+  assert.equal(session.eventAt(session.seq-1).type,'compaction/start')
+ }})
+ await h.agent.ctx.waterfall('agent/pre-step',{agent:h.agent,signal:new AbortController().signal,step:2,turn:1,messages:[]},async()=>({kind:'continue',messages:[]}))
+ const lifecycle=h.events().filter(e=>e.type.startsWith('compaction/'))
+ assert.deepEqual(lifecycle.map(e=>e.type),['compaction/start','compaction/summary','compaction/end'])
+ assert.equal(new Set(lifecycle.map(e=>e.data.compactionId)).size,1)
+ assert.equal(lifecycle[1].data.provider,provider)
+ assert.equal(lifecycle[2].data.error,undefined)
+})
 test('large fixed occupancy selects useful history and does not recycle checkpoint with tiny exchanges',async()=>{
  const h=await fixture({capacity:240000,history:4000,summary:'checkpoint '.repeat(400),retain:30000})
  const sample=(input)=>{

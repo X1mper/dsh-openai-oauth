@@ -5,6 +5,7 @@ import type { CodexContextView } from './context-indicator.js'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SessionStandardProps, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ReactNode } from 'react'
+import { isCodexProvider } from './codex-route.js'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap { codexContext: 'label' | 'estimate' | 'sample' | 'unknown' | 'details' }
@@ -16,13 +17,13 @@ export const contextDictionaries = {
   zh: { label: 'Codex 上下文', estimate: '估算', sample: '最近请求 + 估算增量', unknown: '暂无数据', details: '估算的上下文占用，不是计费用量或 ChatGPT 配额。可能不包括隐藏的图片/提供方开销及正在生成的输出。' },
 }
 export function contextForRoute(view: CodexContextView | null | undefined, route: { provider: string; model: string } | null | undefined): CodexContextView | null {
-  return route?.provider === 'openai-codex' && view?.provider === route.provider && view.model === route.model ? view : null
+  return route && isCodexProvider(route.provider) && view?.provider === route.provider && view.model === route.model ? view : null
 }
 export function CodexContextIndicator({ t, useProjection }: { t: TranslateNS<typeof NS>; useProjection: SessionStandardProps['useProjection'] }): ReactNode {
   const selection = useProjection('modelSelection')
   const raw = useProjection('codexContext')
   const route = selection?.next ?? selection?.lastUsed
-  if (route?.provider !== 'openai-codex') return null
+  if (!isCodexProvider(route?.provider)) return null
   const view = contextForRoute(raw, route)
   const total = view?.totalTokens
   const capacity = view?.capacity

@@ -7,11 +7,17 @@
 **用你的 ChatGPT 账户，写代码、查资料、做创作。**<br>
 对话、工具和权限仍由 Harness 管理。
 
-[![Release](https://img.shields.io/badge/release-v0.8.2-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.8.2) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v0.9.0-beta.1-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.1) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
 
 [English](README.md) · [Русский](README.ru.md) · **简体中文**
 
-[快速开始](#start) · [网页与图片](#tools) · [技术参考](guides/REFERENCE.zh-CN.md) · [发行说明](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.8.2)
+[快速开始](#start) · [网页与图片](#tools) · [技术参考](guides/REFERENCE.zh-CN.md) · [发行说明](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.1)
+
+**Beta / 预发布：** 自动化测试通过；双真实账户及重启后的生产行为仍需验证。稳定用户请继续使用 0.8.2。
+
+**0.9.0-beta.1 — 命名账户：** 在 Settings → OpenAI · Codex 添加“工作”和“个人”账户并分别登录。每个会话在模型选择器中选择 **Codex · 账户名称**，即可同时使用两个账户。原有登录和 `openai-codex` 路由保持不变；新账户具有独立目录、进程、线程和配额。搜索、网页读取与图片操作使用会话选择的账户，不会自动切换账户。原生压缩指示保持不变。
+
+请在活动回合结束后升级，重启 Harness 并刷新页面；不要在回合中删除正在使用的提供方。账户元数据保存于 Codex 目录中的 `accounts.json`，额外凭据保存在 `accounts/<uuid>`，不会通过 UI/API 暴露。降级前请私密备份 Codex 目录；旧版本不支持新增路由。
 
 **0.8.2：** 在 Settings → OpenAI · Codex 的上下文设置中加入压缩令牌上限。自动发现活动的策略和压缩后端（包括隔离组），不再依赖固定 ID。保存后的上限在后续压力检查中生效，无需重启；清空或重置会恢复 profile 值，不一定是自动模式。请在回合结束后升级包，重启一次 Harness 并刷新页面。
 
@@ -52,7 +58,7 @@
 dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.8.2
 ```
 
-安装后重启 Harness。需要压缩包？[发行页面](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.8.2)提供已编译的 `.tgz`。
+安装后重启 Harness。需要压缩包？[发行页面](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.1)提供已编译的 `.tgz`。
 
 <details>
 <summary>没有 <code>dsh</code> 命令，或使用 headless？</summary>

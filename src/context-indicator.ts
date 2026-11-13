@@ -1,5 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
+import { isCodexProvider } from './codex-route.js'
+import { validContextSample } from './context-pressure.js'
 import type { ProjectionDefinition } from '@deepseek-ai/dsh-session-projection'
 import type {} from '@deepseek-ai/dsh-session-projection'
 import { deriveEventMessage } from '@deepseek-ai/dsh-session/surface'
@@ -30,7 +32,7 @@ declare module '@deepseek-ai/dsh-session-projection/types' {
 const sameRoute = (a: State['route'], b: State['route']) => a !== null && b !== null && a.provider === b.provider && a.model === b.model
 function publish(state: State): State {
   const route = state.route
-  const view: CodexContextView | null = route?.provider !== 'openai-codex' ? null : {
+  const view: CodexContextView | null = !route || !isCodexProvider(route.provider) ? null : {
     ...route,
     capacity: sameRoute(route, state.context) ? state.context!.capacity : null,
     totalTokens: state.sample ?? (state.reliable ? state.surfaceTokens + state.tools : null),
@@ -43,7 +45,7 @@ function publish(state: State): State {
  * projection rewrites invalidate fallback instead of displaying stale prices.
  */
 export const codexContextProjection = {
-  key: 'codexContext', stateVersion: 1, stateSchema,
+  key: 'codexContext', stateVersion: 2, stateSchema,
   init: () => ({ route: null, context: null, nodes: [], tools: 0, surfaceTokens: 0, sample: null, reliable: true, view: null }),
   apply(state: State, event: import('@deepseek-ai/dsh-session').SessionEvent): State {
     if (event.type === 'request/header') {
@@ -82,13 +84,9 @@ export const codexContextProjection = {
     }
     if (event.type === 'assistant/message') {
       const usage = (event.data.usage as { contextUsage?: { inputTokens?: number; outputTokens?: number; resetsOnHistoryChange?: boolean } } | undefined)?.contextUsage
-      const input = usage?.inputTokens, output = usage?.outputTokens
-      const source = event.data.message.source
-      sample = !event.data.interrupted && sameRoute(state.route, source) &&
-        state.route?.provider === 'openai-codex' && usage?.resetsOnHistoryChange === true &&
-        Number.isSafeInteger(input) && input! >= 0 && Number.isSafeInteger(output) && output! >= 0 &&
-        Number.isSafeInteger(input! + output!) && input! + output! > 0
-        ? input! + output! : null
+      sample = state.route && isCodexProvider(state.route.provider)
+        ? validContextSample(usage, event.data.interrupted, state.route, event.data.message.source)
+        : null
     }
     return publish({ ...state, nodes, surfaceTokens, sample, reliable })
   },

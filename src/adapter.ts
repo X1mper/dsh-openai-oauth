@@ -216,14 +216,14 @@ export class CodexAppServerAdapter extends LlmAdapter {
   private modelsCachedAt = 0
   private readonly contextWindows = new Map<string, number>()
 
-  constructor(server = new AppServer(), private readonly sessionCwd?: (sessionId: string) => string | undefined, attachments?: ImageStore) {
+  constructor(server = new AppServer(), private readonly sessionCwd?: (sessionId: string) => string | undefined, attachments?: ImageStore, public provider = PROVIDER, public displayName = 'OpenAI Codex (ChatGPT OAuth)', private readonly bindingProvider = provider) {
     super()
     this.server = server
     this.images = new ImageBridge(attachments)
   }
 
   private configurationKey(options: GenerateOptions): string {
-    return digest(['harness-capabilities-v4-external-permissions', sessionKey(options), options.model, options.system ?? '', toolSpec(options),
+    return digest([...(this.bindingProvider === PROVIDER ? [] : [this.bindingProvider]), 'harness-capabilities-v4-external-permissions', sessionKey(options), options.model, options.system ?? '', toolSpec(options),
       options.sessionId === undefined ? process.cwd() : this.sessionCwd?.(String(options.sessionId)) ?? process.cwd()])
   }
 
@@ -260,8 +260,8 @@ export class CodexAppServerAdapter extends LlmAdapter {
       usage, history, system: options.system ?? '', model: options.model, fresh: false }
   }
 
-  override providerInfo(): { id: string; name: string } {
-    return { id: PROVIDER, name: 'OpenAI Codex (ChatGPT OAuth)' }
+  override providerInfo(provider = this.provider): { id: string; name: string } {
+    return { id: provider, name: this.displayName }
   }
 
   private async models(): Promise<Record<string, unknown>[]> {
@@ -280,9 +280,11 @@ export class CodexAppServerAdapter extends LlmAdapter {
     }
   }
 
-  override async listModels(): Promise<readonly LlmModelInfo[]> {
+  override async listModels(provider = this.provider): Promise<readonly LlmModelInfo[]> {
+    // Compatibility aliases resolve saved selections but are not primary picker entries.
+    if (provider !== this.provider) return []
     return (await this.models()).map(model => ({
-      provider: PROVIDER,
+      provider: this.provider,
       id: String(model.model ?? model.id),
       name: String(model.displayName ?? model.model ?? model.id),
       description: typeof model.description === 'string' ? model.description : undefined,

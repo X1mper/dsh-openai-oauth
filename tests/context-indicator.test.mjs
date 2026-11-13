@@ -31,6 +31,15 @@ test('indicator reads independent occupancy and estimates only subsequent growth
  assert.equal(JSON.stringify(h.state()).includes('secret text'),false)
  assert.equal(h.session.eventAt(3).data.usage.totalTokens,403011)
 })
+test('actual incident billing remains separate and wrong-account sample is rejected',()=>{
+ const h=fixture()
+ const billed={inputTokens:1059,cacheReadTokens:493056,outputTokens:372,totalTokens:494487,contextUsage:{inputTokens:165008,outputTokens:54,resetsOnHistoryChange:true}}
+ h.answer(billed)
+ assert.equal(h.view().totalTokens,165062)
+ h.append('request/header',{header:{config:{provider:'openai-codex-01234567-89ab-4cde-8fab-0123456789ab',model:'test'}},reason:'change'})
+ h.answer(billed)
+ assert.equal(h.view().source,'estimated')
+})
 test('replacement invalidates sample and prices smaller current surface',()=>{
  const h=fixture();const a=h.user('long '.repeat(1000));const b=h.answer(usage)
  h.append('user/message',createUserMessage({source:{kind:'compact-checkpoint',compactionId:'test'},content:[{type:'text',text:'summary'}]}),{surfaceOp:{op:'replace',startSeq:a.seq,endSeq:b.seq},sourceEventSeqs:[a.seq,b.seq]})
