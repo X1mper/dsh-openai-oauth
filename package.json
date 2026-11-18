@@ -1,6 +1,6 @@
 {
   "name": "dsh-openai-oauth",
-  "version": "0.9.0-beta.2",
+  "version": "0.9.0-beta.3",
   "description": "Codex integration for DeepSeek Harness: ChatGPT sign-in, web search, image generation and editing, persistent sessions, and usage tracking",
   "type": "module",
   "main": "lib/index.js",
@@ -46,6 +46,10 @@
     "./context": {
       "types": "./lib/context-policy.d.ts",
       "default": "./lib/context-policy.js"
+    },
+    "./subagents": {
+      "types": "./lib/component-subagents.d.ts",
+      "default": "./lib/component-subagents.js"
     }
   },
   "bin": {
@@ -92,7 +96,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@openai/codex": "0.166.0",
+    "@openai/codex": "0.170.0",
     "zod": "4.4.3"
   },
   "peerDependencies": {
@@ -103,7 +107,9 @@
     "@deepseek-ai/dsh-llm": ">=0.2.1-rc.5",
     "@deepseek-ai/dsh-session": ">=0.2.1-rc.5",
     "@deepseek-ai/dsh-session-projection": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-subagent": "0.2.1-rc.5",
     "@deepseek-ai/dsh-token-meter": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-tools": "0.2.1-rc.5",
     "@deepseek-ai/schemastery": "^3.18.1",
     "react": "^18.2.0"
   },
@@ -137,6 +143,12 @@
     },
     "@deepseek-ai/schemastery": {
       "optional": true
+    },
+    "@deepseek-ai/dsh-tools": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-subagent": {
+      "optional": true
     }
   },
   "devDependencies": {
@@ -157,8 +169,10 @@
     "@deepseek-ai/dsh-llm": "0.2.1-rc.5",
     "@deepseek-ai/dsh-session": "0.2.1-rc.5",
     "@deepseek-ai/dsh-session-projection": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-subagent": "^0.2.1-rc.5",
     "@deepseek-ai/dsh-timeout": "0.2.1-rc.5",
     "@deepseek-ai/dsh-token-meter": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-tools": "^0.2.1-rc.5",
     "@deepseek-ai/schemastery": "3.18.5",
     "@types/node": "^24.3.0",
     "@types/react": "^18.3.24",

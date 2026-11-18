@@ -7,13 +7,15 @@
 **用你的 ChatGPT 账户，写代码、查资料、做创作。**<br>
 对话、工具和权限仍由 Harness 管理。
 
-[![Release](https://img.shields.io/badge/release-v0.9.0-beta.2-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.2) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v0.9.0-beta.3-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.3) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
 
 [English](README.md) · [Русский](README.ru.md) · **简体中文**
 
-[快速开始](#start) · [网页与图片](#tools) · [技术参考](guides/REFERENCE.zh-CN.md) · [发行说明](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.2)
+[快速开始](#start) · [网页与图片](#tools) · [技术参考](guides/REFERENCE.zh-CN.md) · [发行说明](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.3)
 
 **Beta / 预发布：** 自动化测试通过；双真实账户及重启后的生产行为仍需验证。稳定用户请继续使用 0.8.2。
+
+**0.9.0-beta.3:** 更新到 Codex `0.170.0`，支持模型目录分页，并按当前账户读取上下文上限。
 
 **0.9.0-beta.2 — 设备代码登录：** 在 Settings → OpenAI · Codex 选择账户并使用设备代码登录。在任意设备打开验证链接并输入一次性代码；Harness 服务器无需浏览器或回调端口。原有浏览器登录保留。不要与他人分享临时代码。
 
@@ -60,7 +62,7 @@
 dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.8.2
 ```
 
-安装后重启 Harness。需要压缩包？[发行页面](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.2)提供已编译的 `.tgz`。
+安装后重启 Harness。需要压缩包？[发行页面](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.3)提供已编译的 `.tgz`。
 
 <details>
 <summary>没有 <code>dsh</code> 命令，或使用 headless？</summary>
@@ -136,7 +138,7 @@ npx @deepseek-ai/dsh --profile headless "分析这个代码仓库"
 
 ## 使用前了解这些
 
-- **验证环境：** Harness `0.2.1-rc.5`、Node.js `22.19+`；内置 Codex 固定为 `0.166.0`。
+- **验证环境：** Harness `0.2.1-rc.5`、Node.js `22.19+`；内置 Codex 固定为 `0.170.0`。
 - **账户访问：** 需要拥有 Codex 权限的 ChatGPT 账户。模型、图片生成能力和配额取决于账户。
 - **页面读取：** 返回提取的文字，不是原始 HTML。HTTP `0` 表示状态码未知。普通 HTTP 获取可使用 `fetchProvider: http`。
 - **上下文：** 仅用于 Codex 的指示器区分上下文占用与计费用量。插件压缩需要按[兼容性指南](guides/context-usage-compat.md)替换现有后端；仅安装插件不会自动启用。`/compact` 仍使用 Harness 摘要；恢复不是无损重放。

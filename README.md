@@ -7,13 +7,15 @@
 **Code, search, and create with your ChatGPT account.**<br>
 Your conversations, tools, and permissions stay in Harness.
 
-[![Release](https://img.shields.io/badge/release-v0.9.0-beta.2-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.2) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v0.9.0-beta.3-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.3) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
 
 **English** · [Русский](README.ru.md) · [简体中文](README.zh-CN.md)
 
-[Quick start](#start) · [Web & images](#tools) · [Technical guide](guides/REFERENCE.md) · [Release notes](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.2)
+[Quick start](#start) · [Web & images](#tools) · [Technical guide](guides/REFERENCE.md) · [Release notes](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.3)
 
 **Beta / pre-release:** Automated tests pass, but simultaneous real-account OAuth and post-restart production behavior still need validation. Stable users should stay on 0.8.2.
+
+**0.9.0-beta.3:** Codex `0.170.0`, paginated model discovery, and account-local context limits. [Account-aware delegation](guides/SUBAGENT-ACCOUNTS.md) is opt-in for Codex-only presets.
 
 **0.9.0-beta.2 — Device code login:** Select an account in Settings → OpenAI · Codex and choose device-code sign-in. Open the verification link on any device and enter the one-time code; no browser or callback port is needed on the Harness server. Browser OAuth remains available. Treat the temporary code as a credential; do not share it. Login confirmation is polled for the selected account only.
 
@@ -84,7 +86,7 @@ automatically clamped: a retained tail at or above that threshold is rejected.
 dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.8.2
 ```
 
-Restart Harness after installation. Prefer an archive? Grab the compiled `.tgz` from the [release page](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.2).
+Restart Harness after installation. Prefer an archive? Grab the compiled `.tgz` from the [release page](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.3).
 
 <details>
 <summary>No <code>dsh</code> command, or using headless?</summary>
@@ -160,7 +162,7 @@ The result includes a verified file path so the model can show the image in its 
 
 ## The small print, kept small
 
-- **Tested with:** Harness `0.2.1-rc.5`, Node.js `22.19+`; bundled Codex is pinned to `0.166.0`.
+- **Tested with:** Harness `0.2.1-rc.5`, Node.js `22.19+`; bundled Codex is pinned to `0.170.0`.
 - **Account access:** requires a ChatGPT account with Codex access. Available models, image generation, and quotas depend on your account.
 - **Page reading:** Codex returns extracted text, not raw HTML. HTTP status `0` means unknown. Use `fetchProvider: http` for ordinary HTTP retrieval.
 - **Context:** the Codex-only indicator separates occupancy from billing. Plugin compaction requires replacing the existing backend as described in the [compatibility guide](guides/context-usage-compat.md); installation alone does not activate it. `/compact` still uses Harness summaries; recovery is not lossless replay.
