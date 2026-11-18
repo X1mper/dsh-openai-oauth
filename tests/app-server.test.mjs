@@ -8,6 +8,57 @@ import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
 
+test('model listing follows cursors in order and uses only the selected account cache', async () => {
+  const { AppServer } = await import('../lib/app-server.js')
+  const root = await mkdtemp(join(tmpdir(), 'dsh-model-catalog-'))
+  try {
+    const homes = ['primary', 'named', 'uncached'].map(name => join(root, name))
+    for (const [index, size] of [200000, 120000].entries()) {
+      await mkdir(homes[index])
+      await writeFile(join(homes[index], 'models_cache.json'), JSON.stringify({
+        fetched_at: new Date().toISOString(),
+        models: [{ slug: 'one', context_window: size }, { slug: 'two', context_window: size, effective_context_window_percent: 50 }],
+      }))
+    }
+    const results = await Promise.all(homes.map(async home => {
+      const server = new AppServer(home)
+      const calls = []
+      const pages = [
+        { data: [{ id: 'alias', model: 'one' }], nextCursor: 'c1' },
+        { data: [], nextCursor: 'c2' },
+        { data: [{ id: 'two' }, { id: 'three', contextWindow: 123 }], nextCursor: null },
+      ]
+      server.request = async (method, params) => {
+        assert.equal(method, 'model/list')
+        calls.push(params)
+        return pages.shift()
+      }
+      const models = await server.models()
+      assert.deepEqual(calls, [{}, { cursor: 'c1' }, { cursor: 'c2' }])
+      assert.deepEqual(models.map(model => model.id), ['alias', 'two', 'three'])
+      return models.map(model => model.contextWindow)
+    }))
+    assert.deepEqual(results, [[200000, 100000, 123], [120000, 60000, 123], [undefined, undefined, 123]])
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('model listing rejects repeated cursors and malformed pages', async () => {
+  const { AppServer } = await import('../lib/app-server.js')
+  const server = new AppServer()
+  let calls = 0
+  server.request = async () => {
+    assert.ok(++calls <= 2)
+    return { data: [], nextCursor: 'repeat' }
+  }
+  await assert.rejects(server.models(), /Invalid Codex model catalog cursor/)
+  server.request = async () => ({ data: [null], nextCursor: null })
+  await assert.rejects(server.models(), /Invalid Codex model catalog page/)
+  server.request = async () => ({ data: [], nextCursor: 7 })
+  await assert.rejects(server.models(), /Invalid Codex model catalog cursor/)
+})
+
 test('process-death queues reject future reads and discard stale queued tool calls', async () => {
   const { AppServer } = await import('../lib/app-server.js')
   const server = new AppServer()

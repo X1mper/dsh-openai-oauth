@@ -2,7 +2,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { mkdir } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { createInterface } from 'node:readline'
-import { readModelContext } from './model-context.js'
+import { cachedModelContext, readModelContextCache } from './model-context.js'
 import { codexHome } from './paths.js'
 import { CodexRpcError } from './rpc-error.js'
 
@@ -208,11 +208,27 @@ export class AppServer {
   }
 
   async models(): Promise<JsonObject[]> {
-    const result = await this.request('model/list', {})
-    return Promise.all((result.data as JsonObject[]).map(async model => {
-      const capacity = await readModelContext(String(model.model ?? model.id))
+    const models: JsonObject[] = []
+    const seen = new Set<string>()
+    let cursor: string | undefined
+    while (true) {
+      const result = await this.request('model/list', cursor === undefined ? {} : { cursor })
+      if (!Array.isArray(result.data) || result.data.some(model => !model || typeof model !== 'object' || Array.isArray(model))) {
+        throw new Error('Invalid Codex model catalog page')
+      }
+      models.push(...result.data)
+      const next = result.nextCursor
+      if (next === null || next === undefined) break
+      if (typeof next !== 'string' || !next || seen.has(next)) throw new Error('Invalid Codex model catalog cursor')
+      seen.add(next)
+      cursor = next
+    }
+    const cache = await readModelContextCache(this.home)
+    const now = Date.now()
+    return models.map(model => {
+      const capacity = cachedModelContext(cache, String(model.model ?? model.id), now)
       return capacity === undefined ? model : { ...model, contextWindow: capacity }
-    }))
+    })
   }
 
   /** Harness owns skill discovery and loading; never advertise a second catalog.

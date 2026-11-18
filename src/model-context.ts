@@ -1,6 +1,5 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { codexHome } from './paths.js'
 
 const positive = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value > 0
 
@@ -18,7 +17,7 @@ export function cachedModelContext(cache: unknown, model: string, now = Date.now
   return positive(effective) ? effective : undefined
 }
 
-export async function readModelContext(model: string): Promise<number | undefined> {
-  try { return cachedModelContext(JSON.parse(await readFile(join(codexHome(), 'models_cache.json'), 'utf8')), model) }
+export async function readModelContextCache(home: string): Promise<unknown> {
+  try { return JSON.parse(await readFile(join(home, 'models_cache.json'), 'utf8')) }
   catch { return undefined }
 }
