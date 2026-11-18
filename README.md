@@ -7,13 +7,15 @@
 **Code, search, and create with your ChatGPT account.**<br>
 Your conversations, tools, and permissions stay in Harness.
 
-[![Release](https://img.shields.io/badge/release-v0.9.0-beta.3-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.3) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v0.9.0-beta.4-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.4) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
 
 **English** · [Русский](README.ru.md) · [简体中文](README.zh-CN.md)
 
-[Quick start](#start) · [Web & images](#tools) · [Technical guide](guides/REFERENCE.md) · [Release notes](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.3)
+[Quick start](#start) · [Web & images](#tools) · [Technical guide](guides/REFERENCE.md) · [Release notes](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.4)
 
 **Beta / pre-release:** Automated tests pass, but simultaneous real-account OAuth and post-restart production behavior still need validation. Stable users should stay on 0.8.2.
+
+**0.9.0-beta.4 — Installation hotfix:** Use the Harness launcher to install the archive without adding copies of the Harness core packages to the profile. Runtime code is unchanged from beta.3.
 
 **0.9.0-beta.3:** Codex `0.170.0`, paginated model discovery, and account-local context limits. [Account-aware delegation](guides/SUBAGENT-ACCOUNTS.md) is opt-in for Codex-only presets.
 
@@ -86,7 +88,9 @@ automatically clamped: a retained tail at or above that threshold is rejected.
 dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.8.2
 ```
 
-Restart Harness after installation. Prefer an archive? Grab the compiled `.tgz` from the [release page](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.3).
+Restart Harness after installation. Prefer an archive? Grab the compiled `.tgz` from the [release page](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.4).
+
+For the beta archive, use `dsh plugin --profile web add --ignore-scripts /path/to/dsh-openai-oauth-0.9.0-beta.4.tgz`. **Do not install Harness core peers into the profile** to make plain Node imports work. The Harness launcher resolves those imports from its own installation. In Harness 0.2.1-rc.5, a second profile-local `@deepseek-ai/dsh-tools` can break every tool call with `Cannot read properties of undefined (reading 'prepare')`, even at the same version. If this started after manually adding core dependencies, remove only the copies introduced by that install and restart Harness; the beta archive itself does not need replacing.
 
 <details>
 <summary>No <code>dsh</code> command, or using headless?</summary>
