@@ -7,13 +7,15 @@
 **用你的 ChatGPT 账户，写代码、查资料、做创作。**<br>
 对话、工具和权限仍由 Harness 管理。
 
-[![Release](https://img.shields.io/badge/release-v0.9.0-beta.4-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.4) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v0.9.0-beta.5-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.5) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![License](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
 
 [English](README.md) · [Русский](README.ru.md) · **简体中文**
 
-[快速开始](#start) · [网页与图片](#tools) · [技术参考](guides/REFERENCE.zh-CN.md) · [发行说明](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.4)
+[快速开始](#start) · [网页与图片](#tools) · [技术参考](guides/REFERENCE.zh-CN.md) · [发行说明](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.5)
 
 **Beta / 预发布：** 自动化测试通过；双真实账户及重启后的生产行为仍需验证。稳定用户请继续使用 0.8.2。
+
+**0.9.0-beta.5 — 网页搜索：** 当 profile 加载独立的 Harness 会话包副本时，Codex 搜索现在会返回来源，只跳过可选的用量记录。
 
 **0.9.0-beta.4 — 安装修复：** 使用 Harness 启动器安装归档，不要在 profile 中另装核心包。插件运行时代码与 beta.3 相同。
 
@@ -64,7 +66,7 @@
 dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.8.2
 ```
 
-安装后重启 Harness。需要压缩包？[发行页面](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.4)提供已编译的 `.tgz`。
+安装后重启 Harness。需要压缩包？[发行页面](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.5)提供已编译的 `.tgz`。
 
 <details>
 <summary>没有 <code>dsh</code> 命令，或使用 headless？</summary>
