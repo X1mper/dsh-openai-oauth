@@ -21,7 +21,8 @@ function readThreshold(value: LiveThreshold | undefined): number | undefined {
 }
 
 type Route = { provider: string; model: string }
-/** Codex pressure backend for the stock installModelSelection composition. */
+/** Codex pressure backend for the stock composition: dsh-agent-loop supplies
+ * the provider/model assembly variables from the current model selection. */
 export class CodexCompactionEngine extends BasicCompactionEngine {
   private readonly assembledRoutes = new WeakMap<Agent, Route>()
   static override Config: Schema<BasicCompactionConfig & { thresholdTokens?: number }, CodexCompactionConfig> = Schema.object({

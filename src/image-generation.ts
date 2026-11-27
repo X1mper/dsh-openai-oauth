@@ -51,7 +51,7 @@ export function resolveEditImages(ids: readonly string[], messages: readonly Mes
   for (const message of messages) visit(message.content)
   return ids.map(id => {
     const ref = refs.get(id)
-    if (!ref) throw new LlmError('Edit image is not an active attachment in this conversation; attach it or use read_image first', 'IMAGE_INPUT_MISSING')
+    if (!ref) throw LlmError.fromFailure({ message: 'Edit image is not an active attachment in this conversation; attach it or use read_image first', code: 'IMAGE_INPUT_MISSING' })
     return ref
   })
 }
@@ -68,11 +68,11 @@ export class CodexImageGenerator {
     const abort = AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(300_000)])
     abort.throwIfAborted()
     const refs = resolveEditImages(ids, messages)
-    if ((await this.server.account())?.type !== 'chatgpt') throw new LlmError('Sign in to ChatGPT to generate images', 'IMAGE_AUTH_REQUIRED')
-    if ((await this.server.request('modelProvider/capabilities/read', {})).imageGeneration !== true) throw new LlmError('Image generation is unavailable for this Codex provider', 'IMAGE_UNAVAILABLE')
+    if ((await this.server.account())?.type !== 'chatgpt') throw LlmError.fromFailure({ message: 'Sign in to ChatGPT to generate images', code: 'IMAGE_AUTH_REQUIRED' })
+    if ((await this.server.request('modelProvider/capabilities/read', {})).imageGeneration !== true) throw LlmError.fromFailure({ message: 'Image generation is unavailable for this Codex provider', code: 'IMAGE_UNAVAILABLE' })
     const models = await this.server.models()
     const selected = model === undefined ? models.find(m => m.isDefault && !m.hidden) ?? models.find(m => !m.hidden) : models.find(m => m.model === model || m.id === model)
-    if (!selected) throw new LlmError('No Codex model available for image generation', 'IMAGE_UNAVAILABLE')
+    if (!selected) throw LlmError.fromFailure({ message: 'No Codex model available for image generation', code: 'IMAGE_UNAVAILABLE' })
     model = String(selected.model ?? selected.id)
     let thread: string | undefined, turn: string | undefined, generated: NativeImage | undefined
     let completed = false
@@ -100,25 +100,25 @@ export class CodexImageGenerator {
         if (event.method === 'item/completed') {
           const item = event.params.item as NativeImage & { type?: string }
           if (item?.type === 'imageGeneration') {
-            if (generated) throw new LlmError('Codex returned multiple image generations for one request', 'IMAGE_PROTOCOL_ERROR')
+            if (generated) throw LlmError.fromFailure({ message: 'Codex returned multiple image generations for one request', code: 'IMAGE_PROTOCOL_ERROR' })
             generated = item
           }
         }
-        if (event.method === 'item/tool/call') throw new LlmError('Unexpected dynamic tool during image generation', 'IMAGE_PROTOCOL_ERROR')
-        if (event.method === 'error' && event.params.willRetry !== true) throw new LlmError(String((event.params.error as { message?: string })?.message ?? 'Image generation failed'), 'IMAGE_GENERATION_FAILED')
+        if (event.method === 'item/tool/call') throw LlmError.fromFailure({ message: 'Unexpected dynamic tool during image generation', code: 'IMAGE_PROTOCOL_ERROR' })
+        if (event.method === 'error' && event.params.willRetry !== true) throw LlmError.fromFailure({ message: String((event.params.error as { message?: string })?.message ?? 'Image generation failed'), code: 'IMAGE_GENERATION_FAILED' })
         if (event.method !== 'turn/completed') continue
         const result = event.params.turn as { status?: string; error?: { message?: string } }
-        if (result.status !== 'completed') throw new LlmError(result.error?.message ?? 'Image generation interrupted', 'IMAGE_GENERATION_FAILED')
+        if (result.status !== 'completed') throw LlmError.fromFailure({ message: result.error?.message ?? 'Image generation interrupted', code: 'IMAGE_GENERATION_FAILED' })
         completed = true
-        if (!generated) throw new LlmError('Codex completed the turn without calling native image generation', 'IMAGE_GENERATION_FAILED')
-        if (generated.status !== 'completed' || generated.failure) throw new LlmError('Native image generation did not complete: ' + (generated.failure ? JSON.stringify(generated.failure) : generated.status), 'IMAGE_GENERATION_FAILED')
-        if (request.transparent_background === true && generated.transparentBackground !== true) throw new LlmError('Codex did not confirm the requested transparent background', 'IMAGE_PROTOCOL_ERROR')
+        if (!generated) throw LlmError.fromFailure({ message: 'Codex completed the turn without calling native image generation', code: 'IMAGE_GENERATION_FAILED' })
+        if (generated.status !== 'completed' || generated.failure) throw LlmError.fromFailure({ message: 'Native image generation did not complete: ' + (generated.failure ? JSON.stringify(generated.failure) : generated.status), code: 'IMAGE_GENERATION_FAILED' })
+        if (request.transparent_background === true && generated.transparentBackground !== true) throw LlmError.fromFailure({ message: 'Codex did not confirm the requested transparent background', code: 'IMAGE_PROTOCOL_ERROR' })
 
         // Inline bytes remain authoritative; a saved path alone is insufficient.
         if (typeof generated.result !== 'string' || !generated.result.length || generated.result.length > 40_000_000
-          || !/^[A-Za-z0-9+/]+={0,2}$/.test(generated.result)) throw new LlmError('Codex returned missing or unsupported image bytes', 'IMAGE_PROTOCOL_ERROR')
+          || !/^[A-Za-z0-9+/]+={0,2}$/.test(generated.result)) throw LlmError.fromFailure({ message: 'Codex returned missing or unsupported image bytes', code: 'IMAGE_PROTOCOL_ERROR' })
         const data = Buffer.from(generated.result, 'base64')
-        if (data.toString('base64') !== generated.result || !data.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) throw new LlmError('Codex returned invalid PNG bytes', 'IMAGE_PROTOCOL_ERROR')
+        if (data.toString('base64') !== generated.result || !data.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) throw LlmError.fromFailure({ message: 'Codex returned invalid PNG bytes', code: 'IMAGE_PROTOCOL_ERROR' })
         abort.throwIfAborted()
         const path = await verifiedImagePath(generated.savedPath, data, abort)
         const image = await this.store.saveImage({ data, mediaType: 'image/png', name: mode === 'edit' ? 'codex-edited.png' : 'codex-generated.png' })

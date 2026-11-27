@@ -7,19 +7,13 @@
 **Пиши код, исследуй и рисуй через свой аккаунт ChatGPT.**<br>
 Диалоги, инструменты и разрешения остаются в Harness.
 
-[![Релиз](https://img.shields.io/badge/release-v0.9.0-beta.5-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.5) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.1--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![Лицензия](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
+[![Релиз](https://img.shields.io/badge/release-v0.9.0-beta.2-bba7ff?style=flat-square&labelColor=202736)](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.2) [![Harness](https://img.shields.io/badge/tested_with-Harness_0.2.2--rc.5-b6f38b?style=flat-square&labelColor=202736)](#compatibility) [![Node.js](https://img.shields.io/badge/node-%E2%89%A524.9-8bd5ca?style=flat-square&labelColor=202736)](#compatibility) [![Лицензия](https://img.shields.io/badge/license-MIT-e9c98b?style=flat-square&labelColor=202736)](LICENSE)
 
 [English](README.md) · **Русский** · [简体中文](README.zh-CN.md)
 
-[Быстрый старт](#start) · [Веб и картинки](#tools) · [Техническая справка](guides/REFERENCE.ru.md) · [Что в релизе](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.5)
+[Быстрый старт](#start) · [Веб и картинки](#tools) · [Техническая справка](guides/REFERENCE.ru.md) · [Что в релизе](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.2)
 
 **Бета / pre-release:** Автотесты проходят; одновременная работа двух реальных аккаунтов и поведение после рестарта ещё требуют проверки. Для стабильного использования оставайся на 0.8.2.
-
-**0.9.0-beta.5 — Веб-поиск:** Если профиль загрузил отдельную копию пакета сессий Harness, поиск Codex теперь возвращает источники. Пропускается только необязательная запись статистики.
-
-**0.9.0-beta.4 — Установочный хотфикс:** Ставь архив через launcher Harness, не добавляя копии пакетов ядра в профиль. Код плагина не изменился относительно beta.3.
-
-**0.9.0-beta.3:** Codex `0.170.0`, полный каталог моделей и лимиты контекста из кэша выбранного аккаунта. [Делегирование с наследованием аккаунта](guides/SUBAGENT-ACCOUNTS.md) подключается отдельно в пресетах Codex.
 
 **0.9.0-beta.2 — Вход по коду устройства:** Выбери аккаунт в Settings → OpenAI · Codex и нажми «Войти по коду устройства». Открой ссылку на любом устройстве и введи одноразовый код; браузер и callback-порт на сервере Harness не нужны. Обычный OAuth-вход сохранён. Не передавай временный код другим людям. Подтверждение проверяется только для выбранного аккаунта.
 
@@ -66,9 +60,7 @@
 dsh plugin --profile web add github:X1mper/dsh-openai-oauth#v0.8.2
 ```
 
-После установки перезапусти Harness. Нужен архив? Готовый `.tgz` лежит на [странице релиза](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.5).
-
-Для установки беты из архива: `dsh plugin --profile web add --ignore-scripts /путь/к/dsh-openai-oauth-0.9.0-beta.5.tgz`. **Не добавляй пакеты ядра в профиль**, чтобы заработал импорт из обычного Node.js: launcher Harness разрешает эти импорты из своей установки. В Harness 0.2.1-rc.5 вторая копия `@deepseek-ai/dsh-tools` в профиле может сломать все вызовы инструментов с ошибкой `Cannot read properties of undefined (reading 'prepare')`, даже если версии совпадают. Если ошибка появилась после ручной установки пакетов ядра, убери только копии, добавленные той установкой, и перезапусти Harness. Сам архив беты заменять не нужно.
+После установки перезапусти Harness. Нужен архив? Готовый `.tgz` лежит на [странице релиза](https://github.com/X1mper/dsh-openai-oauth/releases/tag/v0.9.0-beta.2).
 
 <details>
 <summary>Нет команды <code>dsh</code> или нужен headless?</summary>
@@ -144,7 +136,7 @@ npx @deepseek-ai/dsh --profile headless "изучи этот репозитор�
 
 ## Полезно знать
 
-- **Проверено с:** Harness `0.2.1-rc.5`, Node.js `22.19+`; встроенный Codex закреплён на `0.170.0`.
+- **Проверено с:** Harness `0.2.2-rc.5` (офлайн-проверка типов и мок-набор app-server; живая проверка Codex ещё предстоит), Node.js `24.9+`; в этой рабочей копии Codex закреплён на `0.170.0` (опубликованные релизы не изменились).
 - **Доступ:** нужен аккаунт ChatGPT с Codex. Доступные модели, генерация картинок и квоты зависят от аккаунта.
 - **Чтение страниц:** Codex возвращает извлечённый текст, не исходный HTML. HTTP `0` означает неизвестный код. Для обычного HTTP-запроса можно выбрать `fetchProvider: http`.
 - **Контекст:** индикатор только для Codex отделяет заполнение контекста от биллинга. Для сжатия через плагин нужно заменить существующий backend по [руководству совместимости](guides/context-usage-compat.md); одна установка его не активирует. `/compact` по-прежнему использует резюме Harness; восстановление не является побайтовым replay.

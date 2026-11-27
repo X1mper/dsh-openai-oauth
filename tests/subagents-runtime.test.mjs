@@ -24,8 +24,8 @@ test('real public defineTool dispatch preflights concrete route and passes lifec
   const signal = new AbortController().signal
   assert.deepEqual(await tools.get('codex_subagent').execute({ description: 'task', prompt: 'work' }, { agent: parent, signal }), { kind: 'activation', subagentId: 'child' })
   assert.equal(calls[0].provider, 'openai-codex')
-  assert.equal(calls[1].request.parent, parent)
-  assert.equal(calls[1].request.maxDepth, 2)
+  assert.equal(calls[1].parent, parent)
+  assert.equal(calls[1].maxDepth, 2)
   assert.equal(calls[1].signal, signal)
   assert.equal(calls[1].delivery, 'parent')
   assert.deepEqual(await tools.get('list_codex_subagent_models').execute({}, { signal }), [{ model: 'm', reasoningEfforts: ['high'] }])

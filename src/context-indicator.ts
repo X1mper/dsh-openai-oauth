@@ -26,7 +26,6 @@ const stateSchema = z.object({
 })
 type State = z.infer<typeof stateSchema>
 declare module '@deepseek-ai/dsh-session-projection/types' {
-  interface SessionProjectionStateMap { codexContext: State }
   interface SessionProjectionMap { codexContext: CodexContextView | null }
 }
 const sameRoute = (a: State['route'], b: State['route']) => a !== null && b !== null && a.provider === b.provider && a.model === b.model
@@ -91,8 +90,9 @@ export const codexContextProjection = {
     return publish({ ...state, nodes, surfaceTokens, sample, reliable })
   },
   wire: { viewSchema: viewSchema.nullable(), view: (state: State) => state.view },
-} satisfies ProjectionDefinition<'codexContext'>
+} satisfies ProjectionDefinition<'codexContext', State>
 export const name = 'codex-context-indicator'
 export const inject = ['sessionProjections']
-export function apply(ctx: Context): void { ctx.sessionProjections.register(codexContextProjection) }
+// 0.2.2: registration is asynchronous and must settle before consumers read snapshots.
+export async function apply(ctx: Context): Promise<void> { await ctx.sessionProjections.register(codexContextProjection) }
 export default { name, inject, apply }

@@ -4,7 +4,7 @@ This extension is separate from the ordinary chat model picker. It does **not** 
 
 ## Composition
 
-Mount `dsh-openai-oauth/subagents` only in presets dedicated to Codex parents. Leave the stock delegation tool in mixed-provider presets: this component rejects non-Codex parent routes. Keep one catalog tool per scope:
+Mount `dsh-openai-oauth/subagents` inside each delegating preset. Keep one catalog tool per scope:
 
 ```yaml
 - id: account-aware-subagent

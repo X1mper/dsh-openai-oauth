@@ -10,7 +10,8 @@ type LiveThreshold = number | {
 export type CodexCompactionConfig = BasicCompactionConfig & {
     thresholdTokens?: LiveThreshold;
 };
-/** Codex pressure backend for the stock installModelSelection composition. */
+/** Codex pressure backend for the stock composition: dsh-agent-loop supplies
+ * the provider/model assembly variables from the current model selection. */
 export declare class CodexCompactionEngine extends BasicCompactionEngine {
     private readonly assembledRoutes;
     static Config: Schema<BasicCompactionConfig & {

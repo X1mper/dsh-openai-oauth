@@ -1,0 +1,31 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { migrate } from './index.mjs';
+import { transformPreset } from './transform.mjs';
+test('legacy backup resumes; replaced entries are reacquired; failure report sanitized', async () => {
+ const dir=await mkdtemp(join(tmpdir(),'dsh-child-diagnostics-'));
+ const original={id:'standard',plugins:[{id:'tool-subagent',name:'@deepseek-ai/dsh-tool-subagent',config:{provider:'spawn',toolName:'subagent'}}]};
+ const after=transformPreset(original).config;
+ const backupPath=join(dir,'backup.json'),reportPath=join(dir,'report.json');
+ await writeFile(backupPath,JSON.stringify({format:'subagent-accounts-v1',rows:[{before:original,after}]}));
+ const ctx={configEditor:{configuration:()=>[{entry:{options:{name:'@deepseek-ai/dsh-agent-preset'}},inherited:{},override:original}],edit:async()=>{throw new Error('Configuration entry changed during reload PRIVATE_VALUE');}}};
+ await assert.rejects(migrate(ctx,{mode:'apply',backupPath,reportPath}));
+ const r=JSON.parse(await readFile(reportPath));
+ assert.equal(r.code,'ENTRY_REPLACED_DURING_RECONCILE');
+ assert.equal(r.stage,'edit-before-callback');assert.equal(r.preset,'standard');
+ assert.ok(!JSON.stringify(r).includes('PRIVATE_VALUE'));
+ let current=original;
+ ctx.configEditor.configuration=()=>[{entry:{options:{name:'@deepseek-ai/dsh-agent-preset'}},inherited:{},override:current}];
+ ctx.configEditor.edit=async(_entry,fn)=>{current=fn(current);throw new Error('Arbitrary private Loader detail');};
+ await assert.rejects(migrate(ctx,{mode:'apply',backupPath,reportPath}));
+ const r2=JSON.parse(await readFile(reportPath));
+ assert.equal(r2.code,'LOADER_OR_VALIDATION_FAILURE');assert.equal(r2.stage,'edit-reconcile');
+ assert.ok(!JSON.stringify(r2).includes('private Loader'));
+ // A partially applied snapshot safely resumes without a second edit.
+ ctx.configEditor.edit=async()=>{assert.fail('Already migrated preset must not be edited');};
+ await migrate(ctx,{mode:'apply',backupPath,reportPath});
+ assert.equal(JSON.parse(await readFile(reportPath)).status,'complete');
+});

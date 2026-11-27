@@ -18,5 +18,6 @@ export function codexFailure(value: unknown): LlmError {
   const diagnostic = [detail.code, detail.type, data.code, data.type, message].filter(v => typeof v === 'string').join(' ')
   const code = structured ?? (isContextWindowExceededError(diagnostic) ? CONTEXT_WINDOW_EXCEEDED_CODE
     : isQuotaExceededError(diagnostic) ? 'QUOTA' : 'CODEX_ERROR')
-  return new LlmError(message, code)
+  // 0.2.2: the constructor accepts only built-in codes; provider codes go through fromFailure.
+  return LlmError.fromFailure({ message, code })
 }

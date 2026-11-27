@@ -31,10 +31,14 @@ async function fixture({failure=false, capacity=10000, history=4000, summary='Pr
  for(let i=0;i<3;i++)session.append('user/message',createUserMessage({content:[{type:'text',text:'history '.repeat(history)}],source:{kind:'user'}}),{surfaceOp:'append'})
  const agent={ctx,session,options:{}}
  const selection={current:{provider,model:'test'},assembled:undefined}
- installModelSelection(ctx,selection)
+ // 0.2.2: installModelSelection only adds the pre-step switch notice; the
+ // provider/model assembly variables are supplied by dsh-agent-loop from the
+ // assemble context's modelSelection. Emulate that stock composition here.
+ installModelSelection(ctx)
  const assemble=async()=>{
-  const assembly={variables:{},sections:[],contexts:[],tools:[]}
-  return ctx.waterfall('system-prompt/assemble',assembly,{agent},async()=>assembly)
+  const context={agent,modelSelection:selection.current}
+  const assembly={variables:{provider:context.modelSelection?.provider??agent.options.provider,model:context.modelSelection?.model??agent.options.model},sections:[],contexts:[],tools:[]}
+  return ctx.waterfall('system-prompt/assemble',assembly,context,async()=>assembly)
  }
  await assemble()
  return {backend,agent,meter,selection,assemble,calls:()=>calls,events:()=>Array.from({length:session.seq},(_,i)=>session.eventAt(i))}
@@ -44,7 +48,7 @@ test('named account automatic pressure keeps native lifecycle markers, including
  const h=await fixture({provider,onSummarize(session){
   assert.equal(session.eventAt(session.seq-1).type,'compaction/start')
  }})
- await h.agent.ctx.waterfall('agent/pre-step',{agent:h.agent,signal:new AbortController().signal,step:2,turn:1,messages:[]},async()=>({kind:'continue',messages:[]}))
+ await h.agent.ctx.waterfall('agent/pre-step',{agent:h.agent,signal:new AbortController().signal,step:2,turn:1,messages:[],modelSelection:h.selection.current},async()=>({kind:'continue',messages:[]}))
  const lifecycle=h.events().filter(e=>e.type.startsWith('compaction/'))
  assert.deepEqual(lifecycle.map(e=>e.type),['compaction/start','compaction/summary','compaction/end'])
  assert.equal(new Set(lifecycle.map(e=>e.data.compactionId)).size,1)
@@ -129,7 +133,7 @@ test('real session, meter and region transaction replace history once',async()=>
 test('inherited automatic pre-step dispatches Codex policy and continues once',async()=>{
  const h=await fixture()
  let nextCalls=0
- const payload={agent:h.agent,signal:new AbortController().signal,step:2,turn:1,messages:[]}
+ const payload={agent:h.agent,signal:new AbortController().signal,step:2,turn:1,messages:[],modelSelection:h.selection.current}
  const next=async()=>{nextCalls++;return {kind:'continue',messages:[]}}
  await h.agent.ctx.waterfall('agent/pre-step',payload,next)
  await h.agent.ctx.waterfall('agent/pre-step',payload,next)

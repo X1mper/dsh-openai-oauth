@@ -1,0 +1,24 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { migrate } from './index.mjs';
+import { transformPreset } from './transform.mjs';
+test('guarded apply is idempotent and rollback restores exact prompt/config', async () => {
+ const dir=await mkdtemp(join(tmpdir(),'dsh-child-migration-'));
+ const original={id:'standard',plugins:[{id:'persona',config:{prefix:'unchanged',privateUndefined:undefined,expression:{__jsExpr:'ctx.privateValue'}}},{id:'tool-subagent',name:'@deepseek-ai/dsh-tool-subagent',config:{provider:'spawn',toolName:'subagent'}}]};
+ let current=structuredClone(original);
+ const entry={options:{name:'@deepseek-ai/dsh-agent-preset'}};
+ const ctx={configEditor:{configuration:()=>[{entry,inherited:{},override:structuredClone(current)}],edit:async(e,fn)=>{current=fn(structuredClone(current),{});}}};
+ const backupPath=join(dir,'backup.json'), reportPath=join(dir,'report.json');
+ await migrate(ctx,{mode:'dry-run'}); assert.deepEqual(current,original);
+ await migrate(ctx,{mode:'apply',backupPath,reportPath}); const migrated=structuredClone(current);
+ assert.equal(JSON.parse(await readFile(reportPath)).status,'complete');
+ await migrate(ctx,{mode:'apply',backupPath}); assert.deepEqual(current,migrated);
+ current={...current,extra:'changed'};
+ await assert.rejects(migrate(ctx,{mode:'rollback',backupPath}),/backup does not match/);
+ current=migrated;
+ await migrate(ctx,{mode:'rollback',backupPath,reportPath}); assert.deepEqual(current,original);
+ await migrate(ctx,{mode:'rollback',backupPath}); assert.deepEqual(current,original);
+});

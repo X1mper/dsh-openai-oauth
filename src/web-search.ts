@@ -17,19 +17,19 @@ const schema = {
 
 export function parseSearchResult(text: string, maxResults = 8): SearchResult {
   let parsed: unknown
-  try { parsed = JSON.parse(text) } catch { throw new LlmError('Codex search returned invalid JSON', 'WEB_PROVIDER_PROTOCOL_ERROR') }
+  try { parsed = JSON.parse(text) } catch { throw LlmError.fromFailure({ message: 'Codex search returned invalid JSON', code: 'WEB_PROVIDER_PROTOCOL_ERROR' }) }
   const raw = (parsed as { sources?: unknown } | null)?.sources
-  if (!Array.isArray(raw)) throw new LlmError('Codex search returned no source list', 'WEB_PROVIDER_PROTOCOL_ERROR')
+  if (!Array.isArray(raw)) throw LlmError.fromFailure({ message: 'Codex search returned no source list', code: 'WEB_PROVIDER_PROTOCOL_ERROR' })
   const sources: SearchSource[] = []
   const seen = new Set<string>()
   for (const value of raw) {
     if (value === null || typeof value !== 'object' || typeof value.url !== 'string') {
-      throw new LlmError('Codex search returned a malformed source', 'WEB_PROVIDER_PROTOCOL_ERROR')
+      throw LlmError.fromFailure({ message: 'Codex search returned a malformed source', code: 'WEB_PROVIDER_PROTOCOL_ERROR' })
     }
     let url: URL
-    try { url = new URL(value.url) } catch { throw new LlmError('Codex search returned an invalid source URL', 'WEB_PROVIDER_PROTOCOL_ERROR') }
+    try { url = new URL(value.url) } catch { throw LlmError.fromFailure({ message: 'Codex search returned an invalid source URL', code: 'WEB_PROVIDER_PROTOCOL_ERROR' }) }
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
-      throw new LlmError('Codex search returned an unsupported source URL', 'WEB_PROVIDER_PROTOCOL_ERROR')
+      throw LlmError.fromFailure({ message: 'Codex search returned an unsupported source URL', code: 'WEB_PROVIDER_PROTOCOL_ERROR' })
     }
     if (seen.has(url.href)) continue
     seen.add(url.href)
@@ -52,19 +52,19 @@ export class CodexWebSearchProvider {
   async search(request: SearchRequest, signal?: AbortSignal): Promise<SearchResult> {
     if (!request.query.trim() || request.query.length > 20_000
       || (request.maxResults !== undefined && (!Number.isSafeInteger(request.maxResults) || request.maxResults < 1))) {
-      throw new LlmError('Invalid Codex web search query or result limit', 'WEB_INVALID_REQUEST')
+      throw LlmError.fromFailure({ message: 'Invalid Codex web search query or result limit', code: 'WEB_INVALID_REQUEST' })
     }
     const abort = AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(120_000)])
     abort.throwIfAborted()
     const server = typeof this.server === 'function' ? this.server() : this.server
     const requestedModel = this.currentModel()
     const account = await server.account()
-    if (account?.type !== 'chatgpt') throw new LlmError('Sign in to ChatGPT in the Codex plugin settings to use web search', 'WEB_PROVIDER_CREDENTIAL_MISSING')
+    if (account?.type !== 'chatgpt') throw LlmError.fromFailure({ message: 'Sign in to ChatGPT in the Codex plugin settings to use web search', code: 'WEB_PROVIDER_CREDENTIAL_MISSING' })
     const models = await server.models()
     const selected = requestedModel === undefined
       ? models.find(model => model.isDefault === true && model.hidden !== true) ?? models.find(model => model.hidden !== true)
       : models.find(model => model.model === requestedModel || model.id === requestedModel)
-    if (selected === undefined) throw new LlmError('No Codex model available for web search', 'WEB_PROVIDER_UNAVAILABLE')
+    if (selected === undefined) throw LlmError.fromFailure({ message: 'No Codex model available for web search', code: 'WEB_PROVIDER_UNAVAILABLE' })
     const model = String(selected.model ?? selected.id)
     const maxResults = Math.min(request.maxResults ?? 8, 20)
     abort.throwIfAborted()
@@ -91,7 +91,7 @@ export class CodexWebSearchProvider {
           const id = String(event.params.itemId)
           items.set(id, (items.get(id) ?? '') + String(event.params.delta ?? ''))
           if ([...items.values()].reduce((sum, text) => sum + text.length, 0) > 200_000) {
-            throw new LlmError('Codex search response exceeded its size limit', 'WEB_PROVIDER_PROTOCOL_ERROR')
+            throw LlmError.fromFailure({ message: 'Codex search response exceeded its size limit', code: 'WEB_PROVIDER_PROTOCOL_ERROR' })
           }
         }
         if (event.method === 'item/completed') {
@@ -99,15 +99,15 @@ export class CodexWebSearchProvider {
           if (item?.type === 'webSearch') searched = true
           if (item?.type === 'agentMessage') output = items.get(String(item.id)) ?? String(item.text ?? '')
         }
-        if (event.method === 'item/tool/call') throw new LlmError('Unexpected dynamic tool in Codex search', 'WEB_PROVIDER_PROTOCOL_ERROR')
+        if (event.method === 'item/tool/call') throw LlmError.fromFailure({ message: 'Unexpected dynamic tool in Codex search', code: 'WEB_PROVIDER_PROTOCOL_ERROR' })
         if (event.method === 'error' && event.params.willRetry !== true) {
-          throw new LlmError(String((event.params.error as { message?: string })?.message ?? 'Codex search failed'), 'WEB_PROVIDER_FAILED')
+          throw LlmError.fromFailure({ message: String((event.params.error as { message?: string })?.message ?? 'Codex search failed'), code: 'WEB_PROVIDER_FAILED' })
         }
         if (event.method === 'turn/completed') {
           const result = event.params.turn as { status?: string; error?: { message?: string } }
-          if (result.status !== 'completed') throw new LlmError(result.error?.message ?? 'Codex search interrupted', 'WEB_PROVIDER_FAILED')
+          if (result.status !== 'completed') throw LlmError.fromFailure({ message: result.error?.message ?? 'Codex search interrupted', code: 'WEB_PROVIDER_FAILED' })
           completed = true
-          if (!searched) throw new LlmError('Codex did not perform native web search; refusing ungrounded results', 'WEB_PROVIDER_PROTOCOL_ERROR')
+          if (!searched) throw LlmError.fromFailure({ message: 'Codex did not perform native web search; refusing ungrounded results', code: 'WEB_PROVIDER_PROTOCOL_ERROR' })
           return parseSearchResult(output, maxResults)
         }
       }

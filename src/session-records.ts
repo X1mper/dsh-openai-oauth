@@ -11,12 +11,7 @@ let append: AppendRecord | undefined
 /** Load the host peer once at plugin activation, not in standalone adapters. */
 export async function initializeSessionRecords(): Promise<void> {
   const api = await import('@deepseek-ai/dsh-session')
-  const writer = (api as unknown as { appendPluginRecord?: AppendRecord }).appendPluginRecord
-  // A profile can resolve a second copy of dsh-session. Its writer uses a
-  // private Session method and cannot append to the host's Session instance.
-  append = typeof writer === 'function' ? (session, type, data) => {
-    if (session instanceof api.Session) writer(session, type, data)
-  } : undefined
+  append = (api as unknown as { appendPluginRecord?: AppendRecord }).appendPluginRecord
 }
 
 /** Optional diagnostics must never become mandatory session-format events.

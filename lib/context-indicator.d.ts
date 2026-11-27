@@ -44,9 +44,6 @@ declare const stateSchema: z.ZodObject<{
 }, z.core.$strip>;
 type State = z.infer<typeof stateSchema>;
 declare module '@deepseek-ai/dsh-session-projection/types' {
-    interface SessionProjectionStateMap {
-        codexContext: State;
-    }
     interface SessionProjectionMap {
         codexContext: CodexContextView | null;
     }
@@ -122,7 +119,7 @@ export declare const codexContextProjection: {
 };
 export declare const name = "codex-context-indicator";
 export declare const inject: string[];
-export declare function apply(ctx: Context): void;
+export declare function apply(ctx: Context): Promise<void>;
 declare const _default: {
     name: string;
     inject: string[];

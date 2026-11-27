@@ -1,6 +1,8 @@
 import { isLegacyToolResult, type LegacyToolResult, type ReadableBlock } from './legacy-content.js'
 import type { ToolCallId as CallId } from '@deepseek-ai/dsh-llm/brand'
 import type { ReplayEnvelope } from '@deepseek-ai/dsh-llm'
+// 0.2.2: auxiliary purposes are producer-declared; load the compaction declaration for purpose: 'compaction'.
+import type {} from '@deepseek-ai/dsh-compaction-basic'
 import { isAbsolute } from 'node:path'
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
@@ -419,7 +421,7 @@ export class CodexAppServerAdapter extends LlmAdapter {
     // The outstanding RPC keeps the turn paused. Steer FIRST so tools cannot
     // unblock generation before the new user/agent instructions are accepted.
     if (session.pendingInput || incomingImages.length) {
-      if (session.turnId === undefined) throw new LlmError('Missing active Codex turn for steering', 'PROTOCOL_ERROR')
+      if (session.turnId === undefined) throw LlmError.fromFailure({ message: 'Missing active Codex turn for steering', code: 'PROTOCOL_ERROR' })
       await this.server.steerTurn(session.threadId, session.turnId, incomingImages.length
         ? [{ type: 'text', text: session.pendingInput ?? '' }, ...incomingImages]
         : session.pendingInput!)
@@ -453,7 +455,7 @@ export class CodexAppServerAdapter extends LlmAdapter {
     const add = (event: ServerEvent): void => {
       const { callId, tool, arguments: args } = event.params
       if (event.requestId === undefined || typeof callId !== 'string' || typeof tool !== 'string') {
-        throw new LlmError('Malformed Codex dynamic tool request', 'PROTOCOL_ERROR')
+        throw LlmError.fromFailure({ message: 'Malformed Codex dynamic tool request', code: 'PROTOCOL_ERROR' })
       }
       calls.push({ requestId: event.requestId, callId, name: tool, arguments: args })
     }
@@ -563,7 +565,7 @@ export class CodexAppServerAdapter extends LlmAdapter {
                   completed = true
                 }
               }
-              if (!completed) throw new LlmError('History summary ended without completion', 'PROTOCOL_ERROR')
+              if (!completed) throw LlmError.fromFailure({ message: 'History summary ended without completion', code: 'PROTOCOL_ERROR' })
               return summary
             }, options.signal)
             try {
@@ -638,12 +640,12 @@ export class CodexAppServerAdapter extends LlmAdapter {
           continue
         }
         if (event.method === 'item/tool/call') {
-          if (options.purpose !== undefined) throw new LlmError('Auxiliary Codex call attempted a tool request', 'PROTOCOL_ERROR')
+          if (options.purpose !== undefined) throw LlmError.fromFailure({ message: 'Auxiliary Codex call attempted a tool request', code: 'PROTOCOL_ERROR' })
           const calls = await this.collectToolCalls(session, event, options.signal)
           const originalNames = new Map([...toolNames(options)].map(([original, alias]) => [alias, original]))
           for (const call of calls) {
             const original = originalNames.get(call.name)
-            if (original === undefined) throw new LlmError(`Unknown Codex dynamic tool "${call.name}"`, 'PROTOCOL_ERROR')
+            if (original === undefined) throw LlmError.fromFailure({ message: `Unknown Codex dynamic tool "${call.name}"`, code: 'PROTOCOL_ERROR' })
             call.name = original
           }
           session.pending = calls

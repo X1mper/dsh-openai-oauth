@@ -76,11 +76,11 @@ test('image-related unrelated log records do not invalidate the sample',()=>{
  const h=fixture();h.answer(usage)
  assert.equal(p.apply(h.state(),{type:'plugin:image/generated',seq:99,data:{}}),h.state())
 })
-test('projection registers and replays real serialized session with text-free numeric surface state',()=>{
+test('projection registers and replays real serialized session with text-free numeric surface state',async()=>{
  const h=fixture();h.user('task');h.answer(usage)
  const seed=Array.from({length:h.session.seq},(_,i)=>h.session.eventAt(i))
  const replay=Session.create('indicator-replay',JSON.parse(JSON.stringify(seed)))
- const ctx=new Context();const registry=new SessionProjectionRegistry(ctx);apply(ctx)
+ const ctx=new Context();const registry=new SessionProjectionRegistry(ctx);await apply(ctx)
  const snapshot=registry.snapshot(replay)
  assert.deepEqual(snapshot.values.codexContext,h.view())
  const saved=JSON.parse(JSON.stringify(h.state()))

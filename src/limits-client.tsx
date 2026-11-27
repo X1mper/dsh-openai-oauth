@@ -119,7 +119,8 @@ function CodexLimitsPolling({ t, useProjection, accountId, provider }: { account
   }
   return <span data-codex-limits={rows.length ? 'windows' : 'status'} style={{ display: 'inline-flex', minWidth: 0 }}>
     <style>{`
-      /* Presentation-only compatibility selector for Harness 0.2.1-rc.5.
+      /* Presentation-only compatibility selector for Harness 0.2.2-rc.5.
+         The ContextMeter hash (.JObwrW_root) and data-composer-stat="usage" are unchanged from 0.2.1-rc.5.
          Scoped to this composer and only while its Codex control is mounted. */
       [data-composer-dock]:has([data-codex-limits]) > .JObwrW_root,
       [data-composer-dock]:has([data-codex-limits]) [data-composer-stat="usage"]{display:none}

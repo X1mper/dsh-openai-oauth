@@ -3,4 +3,4 @@ import type { ContextPolicyConfig } from './context-policy.js';
 export declare function ContextSettings({ scope, ru }: {
     scope: ConfigForm<ContextPolicyConfig>;
     ru: boolean;
-}): import("react").JSX.Element;
+}): import("react/jsx-runtime").JSX.Element;

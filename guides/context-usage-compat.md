@@ -22,7 +22,7 @@ Installing the release enables the indicator, **not** automatic backend replacem
   # preserve your existing config
 ```
 
-Keep its id, scope and configuration. Keep `auto:true` (the default). Do not install a second engine. This module subclasses BasicCompactionEngine and uses its public region transaction. The rc.5 type contract explicitly dispatches automatic compaction through overrides of `compactIfNeeded`; broader docs describe `summarize` as the primary extension hook, so compatibility is pinned and tested against **0.2.1-rc.5**, not promised for arbitrary future releases.
+Keep its id, scope and configuration. Keep `auto:true` (the default). Do not install a second engine. This module subclasses BasicCompactionEngine and uses its public region transaction. The rc.5 type contract explicitly dispatches automatic compaction through overrides of `compactIfNeeded`; broader docs describe `summarize` as the primary extension hook, so compatibility is pinned and tested against **0.2.2-rc.5** (offline type-check and mock suite; live Codex re-verification pending), not promised for arbitrary future releases.
 
 Native manual compaction and provider-confirmed overflow recovery remain unchanged. Non-Codex pressure delegates to Basic. During a model switch involving Codex, proactive work waits for the durable header to match the assembled route rather than summarize under the previous provider. This capture supports stock Harness model selection, not arbitrary late routing middleware.
 
